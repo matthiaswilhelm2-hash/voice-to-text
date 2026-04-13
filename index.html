@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Patientendaten — Spracheingabe</title>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         FIREBASE SDK (kostenloser Tier)
+         Diese 3 Scripts laden Firebase aus dem CDN.
+         ═══════════════════════════════════════════════════════════ -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --siri-blue: #5fc3f5;
+            --siri-purple: #a78bfa;
+            --siri-pink: #f472b6;
+            --siri-orange: #fb923c;
+            --siri-green: #34d399;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --glass-bg-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f5f5f7;
+            --text-secondary: rgba(255, 255, 255, 0.55);
+            --text-tertiary: rgba(255, 255, 255, 0.35);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+            background: #000;
+            color: var(--text-primary);
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Animated background ── */
+        .bg-gradient {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            transition: opacity 0.6s;
+        }
+
+        .bg-gradient::before,
+        .bg-gradient::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.25;
+            animation: bgFloat 12s ease-in-out infinite alternate;
+            will-change: transform;
+        }
+
+        .bg-gradient::before {
+            width: 420px; height: 420px;
+            background: radial-gradient(circle, var(--siri-purple), var(--siri-blue));
+            top: -120px; left: -80px;
+        }
+
+        .bg-gradient::after {
+            width: 360px; height: 360px;
+            background: radial-gradient(circle, var(--siri-pink), var(--siri-orange));
+            bottom: -80px; right: -60px;
+            animation-delay: -6s;
+        }
+
+        body.recording .bg-gradient::before,
+        body.recording .bg-gradient::after {
+            opacity: 0.55;
+            filter: blur(80px);
+        }
+
+        @keyframes bgFloat {
+            0%   { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 20px) scale(1.12); }
+        }
+
+        /* ── Container ── */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px 20px env(safe-area-inset-bottom, 32px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* ── API Key ── */
+        .api-key-wrap {
+            width: 100%;
+            position: relative;
+        }
+
+        .api-key-wrap input {
+            width: 100%;
+            padding: 12px 16px 12px 38px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .api-key-wrap input:focus {
+            border-color: rgba(95, 195, 245, 0.4);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .api-key-wrap input::placeholder { color: var(--text-tertiary); }
+
+        .api-key-wrap .key-icon {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 15px;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* ── Orb Button ── */
+        .orb-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 0;
+        }
+
+        .orb-wrap {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .orb-glow {
+            position: absolute;
+            inset: -24px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, var(--siri-blue), var(--siri-purple), var(--siri-pink), var(--siri-orange), var(--siri-blue));
+            filter: blur(32px);
+            opacity: 0;
+            transition: opacity 0.6s;
+            animation: orbSpin 4s linear infinite;
+            will-change: transform;
+        }
+
+        body.recording .orb-glow { opacity: 0.7; }
+
+        @keyframes orbSpin { to { transform: rotate(360deg); } }
+
+        .orb {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, var(--siri-blue), var(--siri-purple), var(--siri-pink), var(--siri-orange), var(--siri-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s, box-shadow 0.4s;
+            animation: orbSpin 6s linear infinite;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+        }
+
+        .orb:active { transform: scale(0.93); }
+
+        body.recording .orb {
+            animation: orbSpin 3s linear infinite;
+            box-shadow: 0 0 40px rgba(167, 139, 250, 0.3);
+        }
+
+        .orb-inner {
+            width: 90px; height: 90px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #1a1a2e, #0a0a14);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mic-icon {
+            font-size: 34px;
+            filter: drop-shadow(0 0 8px rgba(95, 195, 245, 0.3));
+        }
+
+        body.recording .mic-icon { animation: micPulse 1.2s ease-in-out infinite; }
+
+        @keyframes micPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); opacity: 0.8; }
+        }
+
+        .orb-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+
+        body.recording .orb-label { color: var(--siri-blue); }
+
+        /* ── Waveform ── */
+        .waveform {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 24px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        body.recording .waveform { opacity: 1; }
+
+        .waveform .bar {
+            width: 3px; height: 8px;
+            border-radius: 2px;
+            animation: wave 0.8s ease-in-out infinite;
+        }
+
+        .waveform .bar:nth-child(1) { animation-delay: 0s;    background: var(--siri-blue); }
+        .waveform .bar:nth-child(2) { animation-delay: 0.1s;  background: var(--siri-purple); }
+        .waveform .bar:nth-child(3) { animation-delay: 0.2s;  background: var(--siri-pink); }
+        .waveform .bar:nth-child(4) { animation-delay: 0.3s;  background: var(--siri-orange); }
+        .waveform .bar:nth-child(5) { animation-delay: 0.15s; background: var(--siri-purple); }
+        .waveform .bar:nth-child(6) { animation-delay: 0.25s; background: var(--siri-blue); }
+        .waveform .bar:nth-child(7) { animation-delay: 0.05s; background: var(--siri-pink); }
+
+        @keyframes wave {
+            0%, 100% { height: 6px; opacity: 0.5; }
+            50% { height: 22px; opacity: 1; }
+        }
+
+        /* ── Glass Cards ── */
+        .card {
+            width: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-tertiary);
+            margin-bottom: 14px;
+        }
+
+        .fields-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .field label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            padding-left: 2px;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .field input:focus {
+            border-color: rgba(95, 195, 245, 0.3);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .field input::placeholder { color: var(--text-tertiary); font-size: 14px; }
+
+        .field input.loading {
+            color: var(--text-tertiary);
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        /* ── Textarea ── */
+        .textarea-wrap textarea {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            line-height: 1.6;
+            outline: none;
+            resize: none;
+            min-height: 120px;
+            transition: border-color 0.3s;
+        }
+
+        .textarea-wrap textarea:focus { border-color: rgba(95, 195, 245, 0.3); }
+        .textarea-wrap textarea::placeholder { color: var(--text-tertiary); font-size: 14px; }
+        body.recording .textarea-wrap textarea { border-color: rgba(95, 195, 245, 0.2); }
+
+        /* ── Status ── */
+        .status {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-tertiary);
+            min-height: 20px;
+            transition: color 0.3s;
+        }
+
+        .status.analyzing { color: var(--siri-blue); font-weight: 500; }
+        .status.error     { color: var(--siri-pink); }
+        .status.success   { color: var(--siri-green); }
+
+        /* ── Buttons ── */
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .actions button {
+            padding: 14px 16px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 48px;
+        }
+
+        .actions button:hover {
+            background: var(--glass-bg-hover);
+            color: var(--text-primary);
+        }
+
+        .actions button:active { transform: scale(0.97); }
+
+        .actions button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-save {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(95,195,245,0.2), rgba(167,139,250,0.2)) !important;
+            border-color: rgba(95,195,245,0.25) !important;
+            color: var(--siri-blue) !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.2px;
+        }
+
+        .btn-save:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(95,195,245,0.3), rgba(167,139,250,0.3)) !important;
+            color: #fff !important;
+        }
+
+        .btn-save.saved {
+            background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(52,211,153,0.15)) !important;
+            border-color: rgba(52,211,153,0.3) !important;
+            color: var(--siri-green) !important;
+        }
+
+        /* ── Firebase status banner ── */
+        .fb-status {
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .fb-status.connected {
+            display: block;
+            background: rgba(52,211,153,0.1);
+            border: 1px solid rgba(52,211,153,0.2);
+            color: var(--siri-green);
+        }
+
+        .fb-status.disconnected {
+            display: block;
+            background: rgba(244,114,182,0.1);
+            border: 1px solid rgba(244,114,182,0.2);
+            color: var(--siri-pink);
+        }
+
+        /* ── Privacy ── */
+        .privacy {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-align: center;
+            line-height: 1.5;
+            max-width: 320px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 480px) {
+            .container { padding: 16px 16px 24px; gap: 16px; }
+            .orb-wrap { width: 96px; height: 96px; }
+            .orb-inner { width: 78px; height: 78px; }
+            .mic-icon { font-size: 28px; }
+            .card { padding: 16px; border-radius: 16px; }
+            .fields-grid { gap: 10px; }
+        }
+
+        @media (min-width: 481px) {
+            .container { padding-top: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+
+    <div class="container">
+
+        <!-- API Key -->
+        <div class="api-key-wrap">
+            <span class="key-icon">🔑</span>
+            <input type="password" id="apiKey" placeholder="OpenAI API-Key eingeben" autocomplete="off">
+        </div>
+
+        <!-- Firebase Status -->
+        <div class="fb-status" id="fbStatus"></div>
+
+        <!-- Orb -->
+        <div class="orb-section">
+            <div class="orb-wrap" id="orbBtn" role="button" tabindex="0" aria-label="Aufnahme starten" aria-pressed="false">
+                <div class="orb-glow"></div>
+                <div class="orb">
+                    <div class="orb-inner">
+                        <span class="mic-icon">🎙️</span>
+                    </div>
+                </div>
+            </div>
+            <div class="waveform">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+            <span class="orb-label" id="orbLabel">Antippen zum Sprechen</span>
+        </div>
+
+        <!-- Extracted Fields -->
+        <div class="card">
+            <div class="card-title">Patientendaten</div>
+            <div class="fields-grid">
+                <div class="field">
+                    <label for="fieldName">Name</label>
+                    <input type="text" id="fieldName" placeholder="—">
+                </div>
+                <div class="field">
+                    <label for="fieldAlter">Alter</label>
+                    <input type="text" id="fieldAlter" placeholder="—">
+                </div>
+                <div class="field">
+                    <label for="fieldBlutdruck">Blutdruck</label>
+                    <input type="text" id="fieldBlutdruck" placeholder="—">
+                </div>
+                <div class="field">
+                    <label for="fieldZustand">Zustand</label>
+                    <input type="text" id="fieldZustand" placeholder="—">
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Text -->
+        <div class="card">
+            <div class="card-title">Gesamter Text</div>
+            <div class="textarea-wrap">
+                <textarea id="fieldText" placeholder="Hier erscheint der gesprochene Text …" rows="4"></textarea>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="status" id="status" aria-live="polite"></div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button id="btnRetry" onclick="retryExtraction()" disabled>Erneut extrahieren</button>
+            <button onclick="clearAll()">Felder leeren</button>
+            <button class="btn-save" id="btnSave" onclick="saveToFirebase()" disabled>
+                In Datenbank speichern
+            </button>
+        </div>
+
+        <div class="privacy">
+            Audio wird extern verarbeitet (Web Speech API).
+            Text wird zur Analyse an OpenAI gesendet.
+            Daten werden in Firebase gespeichert.
+        </div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════════════════════════════
+       🔥 FIREBASE KONFIGURATION
+       ──────────────────────────────────────────────────────────────
+       Trage hier deine eigenen Firebase-Zugangsdaten ein!
+
+       So findest du sie:
+       1. Gehe zu https://console.firebase.google.com
+       2. Erstelle ein neues Projekt (oder wähle ein bestehendes)
+       3. Klicke auf "Web-App hinzufügen" (</>-Symbol)
+       4. Kopiere die Werte aus dem firebaseConfig-Objekt hierher
+       5. Aktiviere "Firestore Database" im Firebase-Dashboard
+          (Build → Firestore Database → Datenbank erstellen → Testmodus)
+       ═══════════════════════════════════════════════════════════════ */
+    const firebaseConfig = {
+        apiKey:            "DEIN_FIREBASE_API_KEY",
+        authDomain:        "DEIN_PROJEKT.firebaseapp.com",
+        projectId:         "DEIN_PROJEKT_ID",
+        storageBucket:     "DEIN_PROJEKT.firebasestorage.app",
+        messagingSenderId: "DEINE_SENDER_ID",
+        appId:             "DEINE_APP_ID"
+    };
+    /* ═══════════════════════════════════════════════════════════════ */
+
+    // ── Firebase Init ──
+    let db = null;
+    let firebaseReady = false;
+
+    try {
+        if (firebaseConfig.apiKey !== "DEIN_FIREBASE_API_KEY") {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            firebaseReady = true;
+            showFbStatus('Firebase verbunden', 'connected');
+        } else {
+            showFbStatus('Firebase nicht konfiguriert — Speichern deaktiviert', 'disconnected');
+        }
+    } catch (e) {
+        showFbStatus('Firebase-Fehler: ' + e.message, 'disconnected');
+    }
+
+    function showFbStatus(msg, type) {
+        const el = document.getElementById('fbStatus');
+        el.textContent = msg;
+        el.className = 'fb-status ' + type;
+    }
+
+    // ── State ──
+    let recognition = null;
+    let isRecordingIntended = false;
+    let finalTranscript = '';
+    let restartCount = 0;
+    let lastRestartTime = 0;
+
+    // ── DOM ──
+    const orbBtn   = document.getElementById('orbBtn');
+    const orbLabel = document.getElementById('orbLabel');
+    const statusEl = document.getElementById('status');
+    const textArea = document.getElementById('fieldText');
+    const btnRetry = document.getElementById('btnRetry');
+    const btnSave  = document.getElementById('btnSave');
+    const fieldIds = ['fieldName', 'fieldAlter', 'fieldBlutdruck', 'fieldZustand'];
+
+    // ── Events ──
+    orbBtn.addEventListener('click', toggleRecording);
+    orbBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRecording(); }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isRecordingIntended) stopRecording();
+    });
+
+    // Enable save button when any field changes
+    fieldIds.forEach(id => {
+        document.getElementById(id).addEventListener('input', updateSaveButton);
+    });
+
+    function updateSaveButton() {
+        const hasData = fieldIds.some(id => document.getElementById(id).value.trim());
+        btnSave.disabled = !hasData || !firebaseReady;
+    }
+
+    // ── Recording ──
+    function toggleRecording() {
+        isRecordingIntended ? stopRecording() : startRecording();
+    }
+
+    function startRecording() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            showStatus('Browser nicht unterstützt. Bitte Chrome oder Edge verwenden.', 'error');
+            return;
+        }
+
+        finalTranscript = '';
+        textArea.value = '';
+        clearFields();
+        restartCount = 0;
+
+        recognition = new SR();
+        recognition.lang = 'de-DE';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = handleResult;
+        recognition.onerror = handleError;
+        recognition.onend = handleEnd;
+
+        recognition.start();
+        isRecordingIntended = true;
+
+        document.body.classList.add('recording');
+        orbBtn.setAttribute('aria-pressed', 'true');
+        orbBtn.setAttribute('aria-label', 'Aufnahme stoppen');
+        orbLabel.textContent = 'Zuhören …';
+        showStatus('');
+    }
+
+    function stopRecording() {
+        isRecordingIntended = false;
+
+        if (recognition) {
+            recognition.onend = null;
+            recognition.onerror = null;
+            recognition.stop();
+            recognition = null;
+        }
+
+        document.body.classList.remove('recording');
+        orbBtn.setAttribute('aria-pressed', 'false');
+        orbBtn.setAttribute('aria-label', 'Aufnahme starten');
+        orbLabel.textContent = 'Antippen zum Sprechen';
+
+        const text = textArea.value.trim();
+        if (text) {
+            finalTranscript = text;
+            btnRetry.disabled = false;
+            analyzeWithOpenAI(text);
+        } else {
+            showStatus('Kein Text erkannt.', 'error');
+        }
+    }
+
+    function handleResult(event) {
+        let interim = '';
+        let accumulated = '';
+
+        for (let i = 0; i < event.results.length; i++) {
+            const t = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                accumulated += t + ' ';
+            } else {
+                interim += t;
+            }
+        }
+
+        if (accumulated) finalTranscript = accumulated;
+
+        textArea.value = (finalTranscript + interim).trim();
+        textArea.scrollTop = textArea.scrollHeight;
+    }
+
+    function handleError(event) {
+        if (['no-speech', 'aborted'].includes(event.error)) return;
+
+        const msgs = {
+            'not-allowed':        'Mikrofonzugriff verweigert. Bitte Berechtigung erteilen.',
+            'audio-capture':      'Kein Mikrofon gefunden.',
+            'network':            'Netzwerkfehler bei der Spracherkennung.',
+            'service-not-allowed': 'Spracherkennungsdienst nicht verfügbar.',
+        };
+        showStatus(msgs[event.error] || 'Fehler: ' + event.error, 'error');
+    }
+
+    function handleEnd() {
+        if (!isRecordingIntended) return;
+
+        const now = Date.now();
+        restartCount = (now - lastRestartTime < 10000) ? restartCount + 1 : 1;
+        lastRestartTime = now;
+
+        if (restartCount > 5) {
+            showStatus('Spracherkennung abgebrochen. Bitte erneut starten.', 'error');
+            stopRecording();
+            return;
+        }
+
+        setTimeout(() => {
+            if (isRecordingIntended && recognition) {
+                try { recognition.start(); } catch (_) {}
+            }
+        }, 300);
+    }
+
+    // ── OpenAI Extraction ──
+    async function analyzeWithOpenAI(text) {
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) {
+            showStatus('Bitte OpenAI API-Key eingeben.', 'error');
+            return;
+        }
+
+        showStatus('Daten werden extrahiert …', 'analyzing');
+        setFieldsLoading(true);
+
+        const systemPrompt = `Du bist ein medizinischer Datenextraktions-Assistent. Extrahiere aus dem transkribierten Sprachtext strukturierte Patientendaten.
+
+Extrahiere:
+1. name – Vollständiger Name. Korrigiere offensichtliche Transkriptionsfehler.
+2. alter – Alter als Zahl. "zweiundfünfzig" → "52". "Mitte 50" → "ca. 55".
+3. blutdruck – Format "systolisch/diastolisch". "120 zu 80" → "120/80".
+4. zustand – 1-3 Worte: "stabil", "kritisch", "leichte Beschwerden" etc.
+
+REGELN:
+- NIEMALS erfundene Daten. Fehlende Info → leerer String "".
+- Text stammt aus Spracherkennung, kann Fehler enthalten.
+- Antworte NUR mit dem JSON-Objekt.`;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: text }
+                    ],
+                    temperature: 0.1,
+                    response_format: {
+                        type: 'json_schema',
+                        json_schema: {
+                            name: 'patient_data',
+                            strict: true,
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    name:      { type: 'string' },
+                                    alter:     { type: 'string' },
+                                    blutdruck: { type: 'string' },
+                                    zustand:   { type: 'string' }
+                                },
+                                required: ['name', 'alter', 'blutdruck', 'zustand'],
+                                additionalProperties: false
+                            }
+                        }
+                    }
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                const msg = { 401: 'Ungültiger API-Key.', 429: 'Zu viele Anfragen.', 500: 'OpenAI nicht erreichbar.', 502: 'OpenAI nicht erreichbar.', 503: 'OpenAI nicht erreichbar.' };
+                throw new Error(msg[response.status] || err.error?.message || 'API-Fehler ' + response.status);
+            }
+
+            const data = await response.json();
+            const parsed = JSON.parse(data.choices[0].message.content.trim());
+
+            document.getElementById('fieldName').value      = parsed.name || '';
+            document.getElementById('fieldAlter').value     = parsed.alter || '';
+            document.getElementById('fieldBlutdruck').value = parsed.blutdruck || '';
+            document.getElementById('fieldZustand').value   = parsed.zustand || '';
+
+            setFieldsLoading(false);
+            updateSaveButton();
+            showStatus('Analyse abgeschlossen', 'success');
+            setTimeout(() => showStatus(''), 3000);
+
+        } catch (err) {
+            clearTimeout(timeout);
+            setFieldsLoading(false);
+            if (err.name === 'AbortError') {
+                showStatus('Zeitüberschreitung.', 'error');
+            } else if (err.message === 'Failed to fetch') {
+                showStatus('Keine Internetverbindung.', 'error');
+            } else {
+                showStatus(err.message, 'error');
+            }
+        }
+    }
+
+    // ── Firebase Save ──
+    async function saveToFirebase() {
+        if (!db) {
+            showStatus('Firebase nicht konfiguriert.', 'error');
+            return;
+        }
+
+        const data = {
+            name:      document.getElementById('fieldName').value.trim(),
+            alter:     document.getElementById('fieldAlter').value.trim(),
+            blutdruck: document.getElementById('fieldBlutdruck').value.trim(),
+            zustand:   document.getElementById('fieldZustand').value.trim(),
+            text:      textArea.value.trim(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        btnSave.disabled = true;
+        btnSave.textContent = 'Wird gespeichert …';
+        showStatus('Speichere in Datenbank …', 'analyzing');
+
+        try {
+            await db.collection('patienten').add(data);
+
+            btnSave.textContent = 'Gespeichert ✓';
+            btnSave.classList.add('saved');
+            showStatus('Erfolgreich gespeichert', 'success');
+
+            setTimeout(() => {
+                btnSave.textContent = 'In Datenbank speichern';
+                btnSave.classList.remove('saved');
+                updateSaveButton();
+                showStatus('');
+            }, 3000);
+
+        } catch (err) {
+            btnSave.disabled = false;
+            btnSave.textContent = 'In Datenbank speichern';
+            showStatus('Speichern fehlgeschlagen: ' + err.message, 'error');
+        }
+    }
+
+    // ── Helpers ──
+    function retryExtraction() {
+        const text = textArea.value.trim();
+        if (text) analyzeWithOpenAI(text);
+    }
+
+    function clearFields() {
+        fieldIds.forEach(id => document.getElementById(id).value = '');
+        updateSaveButton();
+    }
+
+    function clearAll() {
+        clearFields();
+        textArea.value = '';
+        finalTranscript = '';
+        btnRetry.disabled = true;
+        btnSave.textContent = 'In Datenbank speichern';
+        btnSave.classList.remove('saved');
+        showStatus('');
+    }
+
+    function setFieldsLoading(on) {
+        fieldIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (on) { el.value = '…'; el.classList.add('loading'); }
+            else { el.classList.remove('loading'); }
+        });
+    }
+
+    function showStatus(msg, type = '') {
+        statusEl.textContent = msg;
+        statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+    </script>
+</body>
+</html>
