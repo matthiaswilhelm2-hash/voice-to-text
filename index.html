@@ -6,772 +6,750 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>Pflegebericht — Spracheingabe</title>
-
+    <title>Pflege-Dashboard</title>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --siri-blue:#5fc3f5;--siri-purple:#a78bfa;--siri-pink:#f472b6;
+            --siri-orange:#fb923c;--siri-green:#34d399;--siri-yellow:#fbbf24;
+            --siri-green-light:#6ee7b7;--siri-red:#ef4444;
+            --glass-bg:rgba(255,255,255,0.08);--glass-border:rgba(255,255,255,0.12);
+            --glass-bg-hover:rgba(255,255,255,0.12);
+            --text-primary:#f5f5f7;--text-secondary:rgba(255,255,255,0.55);
+            --text-tertiary:rgba(255,255,255,0.35);
+            --tf-leit:var(--siri-red);--tf-1:var(--siri-green);--tf-2:var(--siri-orange);
+            --tf-3:var(--siri-yellow);--tf-4:var(--siri-green-light);
+            --tf-5:var(--siri-blue);--tf-6:var(--siri-pink);
+        }
+        body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',system-ui,sans-serif;background:#000;color:var(--text-primary);min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        .bg-gradient{position:fixed;inset:0;z-index:0;overflow:hidden}
+        .bg-gradient::before,.bg-gradient::after{content:'';position:absolute;border-radius:50%;filter:blur(100px);opacity:0.25;animation:bgFloat 12s ease-in-out infinite alternate;will-change:transform}
+        .bg-gradient::before{width:420px;height:420px;background:radial-gradient(circle,var(--siri-purple),var(--siri-blue));top:-120px;left:-80px}
+        .bg-gradient::after{width:360px;height:360px;background:radial-gradient(circle,var(--siri-pink),var(--siri-orange));bottom:-80px;right:-60px;animation-delay:-6s}
+        body.recording .bg-gradient::before,body.recording .bg-gradient::after{opacity:0.55;filter:blur(80px)}
+        @keyframes bgFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,20px) scale(1.12)}}
 
-        :root {
-            --siri-blue: #5fc3f5;
-            --siri-purple: #a78bfa;
-            --siri-pink: #f472b6;
-            --siri-orange: #fb923c;
-            --siri-green: #34d399;
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.12);
-            --glass-bg-hover: rgba(255, 255, 255, 0.12);
-            --text-primary: #f5f5f7;
-            --text-secondary: rgba(255, 255, 255, 0.55);
-            --text-tertiary: rgba(255, 255, 255, 0.35);
-        }
+        /* Views */
+        .view{display:none;flex-direction:column;align-items:center;position:relative;z-index:1;width:100%;max-width:520px;padding:20px 20px 40px;gap:16px}
+        .view.active{display:flex;animation:fadeIn .3s ease}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-            background: #000;
-            color: var(--text-primary);
-            min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
+        /* Common */
+        .glass-input{width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:var(--text-primary);font-size:16px;font-family:inherit;outline:none;transition:border-color .3s}
+        .glass-input:focus{border-color:rgba(95,195,245,0.3);background:rgba(255,255,255,0.08)}
+        .glass-input::placeholder{color:var(--text-tertiary);font-size:14px}
+        select.glass-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.4)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+        textarea.glass-input{resize:none;min-height:56px;line-height:1.5}
+        .card{width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:18px;padding:18px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+        .card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:12px}
+        .btn{padding:14px 20px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:14px;color:var(--text-secondary);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;min-height:48px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:all .2s;-webkit-tap-highlight-color:transparent;width:100%;text-align:center}
+        .btn:hover{background:var(--glass-bg-hover);color:var(--text-primary)}
+        .btn:active{transform:scale(0.97)}
+        .btn:disabled{opacity:0.3;cursor:not-allowed;transform:none}
+        .btn-primary{background:linear-gradient(135deg,rgba(95,195,245,0.2),rgba(167,139,250,0.2))!important;border-color:rgba(95,195,245,0.25)!important;color:var(--siri-blue)!important;font-size:16px!important;font-weight:600!important}
+        .btn-primary:hover:not(:disabled){background:linear-gradient(135deg,rgba(95,195,245,0.3),rgba(167,139,250,0.3))!important;color:#fff!important}
+        .btn-primary.saved{background:linear-gradient(135deg,rgba(52,211,153,0.2),rgba(52,211,153,0.15))!important;border-color:rgba(52,211,153,0.3)!important;color:var(--siri-green)!important}
+        .status{text-align:center;font-size:13px;color:var(--text-tertiary);min-height:20px}
+        .status.analyzing{color:var(--siri-blue);font-weight:500}
+        .status.error{color:var(--siri-pink)}
+        .status.success{color:var(--siri-green)}
+        .nav-back{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--siri-blue);font-size:15px;font-weight:500;font-family:inherit;cursor:pointer;padding:8px 4px;-webkit-tap-highlight-color:transparent;align-self:flex-start}
+        .fb-badge{font-size:11px;padding:4px 10px;border-radius:8px;display:inline-block}
+        .fb-badge.ok{background:rgba(52,211,153,0.12);color:var(--siri-green)}
+        .fb-badge.err{background:rgba(244,114,182,0.12);color:var(--siri-pink)}
 
-        .bg-gradient {
-            position: fixed; inset: 0; z-index: 0; overflow: hidden;
-        }
-        .bg-gradient::before, .bg-gradient::after {
-            content: ''; position: absolute; border-radius: 50%;
-            filter: blur(100px); opacity: 0.25;
-            animation: bgFloat 12s ease-in-out infinite alternate;
-            will-change: transform;
-        }
-        .bg-gradient::before {
-            width: 420px; height: 420px;
-            background: radial-gradient(circle, var(--siri-purple), var(--siri-blue));
-            top: -120px; left: -80px;
-        }
-        .bg-gradient::after {
-            width: 360px; height: 360px;
-            background: radial-gradient(circle, var(--siri-pink), var(--siri-orange));
-            bottom: -80px; right: -60px; animation-delay: -6s;
-        }
-        body.recording .bg-gradient::before,
-        body.recording .bg-gradient::after { opacity: 0.55; filter: blur(80px); }
+        /* ── Dashboard ── */
+        .dash-header{width:100%;display:flex;justify-content:space-between;align-items:center}
+        .dash-header h1{font-size:28px;font-weight:700;letter-spacing:-0.5px}
+        .search-wrap{width:100%;position:relative}
+        .search-wrap input{width:100%;padding:12px 16px 12px 40px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:14px;color:var(--text-primary);font-size:16px;font-family:inherit;outline:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:border-color .3s}
+        .search-wrap input:focus{border-color:rgba(95,195,245,0.3)}
+        .search-wrap input::placeholder{color:var(--text-tertiary)}
+        .search-wrap .ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;opacity:0.35;pointer-events:none}
+        .patient-list{width:100%;display:flex;flex-direction:column;gap:10px}
+        .patient-card{width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:16px;padding:16px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+        .patient-card:hover{background:var(--glass-bg-hover);border-color:rgba(95,195,245,0.2)}
+        .patient-card:active{transform:scale(0.98)}
+        .pc-name{font-size:17px;font-weight:600;margin-bottom:4px}
+        .pc-meta{font-size:13px;color:var(--text-secondary);display:flex;gap:12px;flex-wrap:wrap}
+        .pc-meta span{white-space:nowrap}
+        .pc-tag{font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(95,195,245,0.12);color:var(--siri-blue);font-weight:500}
+        .empty-state{text-align:center;padding:40px 20px;color:var(--text-tertiary);font-size:15px;line-height:1.6}
 
-        @keyframes bgFloat {
-            0%   { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(30px, 20px) scale(1.12); }
-        }
+        /* ── Intake Form ── */
+        .section-card{width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:16px;overflow:hidden;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+        .section-header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .2s}
+        .section-header:hover{background:rgba(255,255,255,0.04)}
+        .section-header h3{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .section-header .chevron{font-size:12px;color:var(--text-tertiary);transition:transform .3s}
+        .section-header.open .chevron{transform:rotate(90deg)}
+        .section-body{padding:0 16px 16px;display:none;flex-direction:column;gap:10px}
+        .section-body.open{display:flex}
+        .form-field{display:flex;flex-direction:column;gap:4px}
+        .form-field label{font-size:12px;font-weight:500;color:var(--text-secondary);padding-left:2px}
+        .form-field label .req{color:var(--siri-pink);margin-left:2px}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .intake-footer{width:100%;position:sticky;bottom:0;padding:12px 0;z-index:10}
 
-        .container {
-            position: relative; z-index: 1; width: 100%; max-width: 480px;
-            padding: 20px 20px env(safe-area-inset-bottom, 32px);
-            display: flex; flex-direction: column; align-items: center; gap: 18px;
-        }
+        /* ── Patient Akte ── */
+        .akte-header{width:100%;display:flex;justify-content:space-between;align-items:flex-start}
+        .akte-info h2{font-size:22px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px}
+        .akte-info .meta{font-size:13px;color:var(--text-secondary);line-height:1.6}
+        .akte-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+        .akte-tag{font-size:11px;padding:3px 10px;border-radius:8px;font-weight:500}
+        .tag-diag{background:rgba(251,191,36,0.12);color:var(--siri-yellow)}
+        .tag-allergy{background:rgba(244,114,182,0.15);color:var(--siri-pink)}
+        .tag-pg{background:rgba(95,195,245,0.12);color:var(--siri-blue)}
 
-        /* ── API Key ── */
-        .api-key-wrap { width: 100%; position: relative; }
-        .api-key-wrap input {
-            width: 100%; padding: 12px 16px 12px 38px;
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            border-radius: 14px; color: var(--text-primary);
-            font-size: 16px; font-family: inherit; outline: none;
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            transition: border-color 0.3s, background 0.3s;
-        }
-        .api-key-wrap input:focus { border-color: rgba(95,195,245,0.4); background: rgba(255,255,255,0.1); }
-        .api-key-wrap input::placeholder { color: var(--text-tertiary); }
-        .api-key-wrap .key-icon {
-            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-            font-size: 15px; opacity: 0.35; pointer-events: none;
-        }
+        /* Orb */
+        .orb-section{display:flex;flex-direction:column;align-items:center;gap:12px;padding:4px 0}
+        .orb-wrap{position:relative;width:100px;height:100px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+        .orb-glow{position:absolute;inset:-20px;border-radius:50%;background:conic-gradient(from 0deg,var(--siri-blue),var(--siri-purple),var(--siri-pink),var(--siri-orange),var(--siri-blue));filter:blur(28px);opacity:0;transition:opacity .6s;animation:orbSpin 4s linear infinite;will-change:transform}
+        body.recording .orb-glow{opacity:0.7}
+        @keyframes orbSpin{to{transform:rotate(360deg)}}
+        .orb{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,var(--siri-blue),var(--siri-purple),var(--siri-pink),var(--siri-orange),var(--siri-blue));display:flex;align-items:center;justify-content:center;animation:orbSpin 6s linear infinite;box-shadow:0 4px 30px rgba(0,0,0,0.4);transition:transform .3s}
+        .orb:active{transform:scale(0.93)}
+        body.recording .orb{animation:orbSpin 3s linear infinite;box-shadow:0 0 40px rgba(167,139,250,0.3)}
+        .orb-inner{width:82px;height:82px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#1a1a2e,#0a0a14);display:flex;align-items:center;justify-content:center}
+        .mic-icon{font-size:30px;filter:drop-shadow(0 0 8px rgba(95,195,245,0.3))}
+        body.recording .mic-icon{animation:micPulse 1.2s ease-in-out infinite}
+        @keyframes micPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12);opacity:0.8}}
+        .orb-label{font-size:14px;font-weight:500;color:var(--text-secondary);transition:color .3s}
+        body.recording .orb-label{color:var(--siri-blue)}
+        .waveform{display:flex;align-items:center;gap:3px;height:22px;opacity:0;transition:opacity .3s}
+        body.recording .waveform{opacity:1}
+        .waveform .bar{width:3px;height:6px;border-radius:2px;animation:wave .8s ease-in-out infinite}
+        .waveform .bar:nth-child(1){animation-delay:0s;background:var(--siri-blue)}
+        .waveform .bar:nth-child(2){animation-delay:.1s;background:var(--siri-purple)}
+        .waveform .bar:nth-child(3){animation-delay:.2s;background:var(--siri-pink)}
+        .waveform .bar:nth-child(4){animation-delay:.3s;background:var(--siri-orange)}
+        .waveform .bar:nth-child(5){animation-delay:.15s;background:var(--siri-purple)}
+        @keyframes wave{0%,100%{height:6px;opacity:0.5}50%{height:20px;opacity:1}}
 
-        /* ── Orb ── */
-        .orb-section { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 6px 0; }
-        .orb-wrap {
-            position: relative; width: 110px; height: 110px;
-            cursor: pointer; -webkit-tap-highlight-color: transparent;
-        }
-        .orb-glow {
-            position: absolute; inset: -24px; border-radius: 50%;
-            background: conic-gradient(from 0deg, var(--siri-blue), var(--siri-purple), var(--siri-pink), var(--siri-orange), var(--siri-blue));
-            filter: blur(32px); opacity: 0; transition: opacity 0.6s;
-            animation: orbSpin 4s linear infinite; will-change: transform;
-        }
-        body.recording .orb-glow { opacity: 0.7; }
-        @keyframes orbSpin { to { transform: rotate(360deg); } }
-        .orb {
-            position: absolute; inset: 0; border-radius: 50%;
-            background: conic-gradient(from 0deg, var(--siri-blue), var(--siri-purple), var(--siri-pink), var(--siri-orange), var(--siri-blue));
-            display: flex; align-items: center; justify-content: center;
-            transition: transform 0.3s, box-shadow 0.4s;
-            animation: orbSpin 6s linear infinite;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.4);
-        }
-        .orb:active { transform: scale(0.93); }
-        body.recording .orb { animation: orbSpin 3s linear infinite; box-shadow: 0 0 40px rgba(167,139,250,0.3); }
-        .orb-inner {
-            width: 90px; height: 90px; border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #1a1a2e, #0a0a14);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .mic-icon { font-size: 34px; filter: drop-shadow(0 0 8px rgba(95,195,245,0.3)); }
-        body.recording .mic-icon { animation: micPulse 1.2s ease-in-out infinite; }
-        @keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12);opacity:0.8} }
-        .orb-label { font-size: 15px; font-weight: 500; color: var(--text-secondary); transition: color 0.3s; }
-        body.recording .orb-label { color: var(--siri-blue); }
+        /* SIS Cards */
+        .sis-cards{width:100%;display:flex;flex-direction:column;gap:10px}
+        .sis-card{width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);border-left:4px solid var(--tf-color,var(--siri-blue));border-radius:14px;padding:14px 16px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+        .sis-card .sis-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--tf-color,var(--text-tertiary));margin-bottom:8px}
+        .sis-card textarea{width:100%;padding:8px 0;background:none;border:none;color:var(--text-primary);font-size:15px;font-family:inherit;line-height:1.5;outline:none;resize:none;min-height:40px}
+        .sis-card textarea::placeholder{color:var(--text-tertiary);font-size:13px}
+        .sis-card textarea.loading{color:var(--text-tertiary);animation:shimmer 1.5s ease-in-out infinite}
+        @keyframes shimmer{0%,100%{opacity:1}50%{opacity:0.35}}
 
-        /* ── Waveform ── */
-        .waveform { display: flex; align-items: center; gap: 3px; height: 24px; opacity: 0; transition: opacity 0.3s; }
-        body.recording .waveform { opacity: 1; }
-        .waveform .bar { width: 3px; height: 8px; border-radius: 2px; animation: wave 0.8s ease-in-out infinite; }
-        .waveform .bar:nth-child(1) { animation-delay:0s;    background:var(--siri-blue); }
-        .waveform .bar:nth-child(2) { animation-delay:0.1s;  background:var(--siri-purple); }
-        .waveform .bar:nth-child(3) { animation-delay:0.2s;  background:var(--siri-pink); }
-        .waveform .bar:nth-child(4) { animation-delay:0.3s;  background:var(--siri-orange); }
-        .waveform .bar:nth-child(5) { animation-delay:0.15s; background:var(--siri-purple); }
-        .waveform .bar:nth-child(6) { animation-delay:0.25s; background:var(--siri-blue); }
-        .waveform .bar:nth-child(7) { animation-delay:0.05s; background:var(--siri-pink); }
-        @keyframes wave { 0%,100%{height:6px;opacity:0.5} 50%{height:22px;opacity:1} }
+        /* Historie */
+        .historie-list{display:flex;flex-direction:column;gap:10px;width:100%}
+        .h-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;transition:background .2s}
+        .h-card:hover{background:rgba(255,255,255,0.06)}
+        .h-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+        .h-date{font-size:12px;color:var(--text-tertiary)}
+        .h-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+        .h-tag{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:500}
+        .h-tag.risk{background:rgba(244,114,182,0.15);color:var(--siri-pink)}
+        .h-tag.act{background:rgba(95,195,245,0.15);color:var(--siri-blue)}
+        .h-summary{font-size:13px;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .h-del{font-size:11px;color:var(--text-tertiary);cursor:pointer;background:none;border:none;padding:4px 8px;border-radius:6px;font-family:inherit;transition:all .2s}
+        .h-del:hover{background:rgba(244,114,182,0.15);color:var(--siri-pink)}
+        .empty-hist{text-align:center;padding:20px;color:var(--text-tertiary);font-size:13px}
 
-        /* ── Glass Cards ── */
-        .card {
-            width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 20px;
-            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-        }
-        .card-title {
-            font-size: 12px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 1px; color: var(--text-tertiary); margin-bottom: 14px;
-        }
+        /* API Key bar */
+        .topbar{width:100%;display:flex;gap:8px;align-items:center}
+        .topbar .key-input{flex:1;padding:10px 14px 10px 34px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:12px;color:var(--text-primary);font-size:14px;font-family:inherit;outline:none;position:relative}
+        .topbar .key-input:focus{border-color:rgba(95,195,245,0.3)}
+        .topbar .key-input::placeholder{color:var(--text-tertiary)}
+        .key-wrap{flex:1;position:relative}
+        .key-wrap .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:0.35;pointer-events:none}
 
-        /* ── Fields ── */
-        .fields-stack { display: flex; flex-direction: column; gap: 12px; }
-        .field { display: flex; flex-direction: column; gap: 5px; }
-        .field label { font-size: 12px; font-weight: 500; color: var(--text-secondary); padding-left: 2px; }
-        .field input, .field textarea {
-            width: 100%; padding: 12px 14px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; color: var(--text-primary);
-            font-size: 16px; font-family: inherit; outline: none;
-            transition: border-color 0.3s, background 0.3s;
-        }
-        .field input:focus, .field textarea:focus {
-            border-color: rgba(95,195,245,0.3); background: rgba(255,255,255,0.08);
-        }
-        .field input::placeholder, .field textarea::placeholder { color: var(--text-tertiary); font-size: 14px; }
-        .field textarea { resize: none; min-height: 64px; line-height: 1.5; }
-        .field input.loading, .field textarea.loading {
-            color: var(--text-tertiary); animation: shimmer 1.5s ease-in-out infinite;
-        }
-        @keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .privacy{font-size:10px;color:var(--text-tertiary);text-align:center;line-height:1.4;max-width:320px}
 
-        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-        /* ── Textarea full text ── */
-        .textarea-wrap textarea {
-            width: 100%; padding: 14px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; color: var(--text-primary);
-            font-size: 16px; font-family: inherit; line-height: 1.6;
-            outline: none; resize: none; min-height: 100px;
-            transition: border-color 0.3s;
+        /* Responsive */
+        @media(max-width:480px){
+            .view{padding:16px 14px 32px;gap:14px}
+            .card,.section-card{border-radius:14px}
+            .form-row{grid-template-columns:1fr}
+            .orb-wrap{width:88px;height:88px}
+            .orb-inner{width:72px;height:72px}
+            .mic-icon{font-size:26px}
+            .dash-header h1{font-size:24px}
         }
-        .textarea-wrap textarea:focus { border-color: rgba(95,195,245,0.3); }
-        .textarea-wrap textarea::placeholder { color: var(--text-tertiary); font-size: 14px; }
-        body.recording .textarea-wrap textarea { border-color: rgba(95,195,245,0.2); }
-
-        /* ── Status ── */
-        .status { text-align: center; font-size: 13px; color: var(--text-tertiary); min-height: 20px; }
-        .status.analyzing { color: var(--siri-blue); font-weight: 500; }
-        .status.error { color: var(--siri-pink); }
-        .status.success { color: var(--siri-green); }
-
-        /* ── Buttons ── */
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-        .actions button {
-            padding: 14px 16px; background: var(--glass-bg);
-            border: 1px solid var(--glass-border); border-radius: 14px;
-            color: var(--text-secondary); font-size: 14px; font-weight: 500;
-            font-family: inherit; cursor: pointer; min-height: 48px;
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            transition: all 0.2s; -webkit-tap-highlight-color: transparent;
-        }
-        .actions button:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
-        .actions button:active { transform: scale(0.97); }
-        .actions button:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-        .btn-save {
-            grid-column: 1 / -1;
-            background: linear-gradient(135deg, rgba(95,195,245,0.2), rgba(167,139,250,0.2)) !important;
-            border-color: rgba(95,195,245,0.25) !important;
-            color: var(--siri-blue) !important; font-size: 16px !important;
-            font-weight: 600 !important;
-        }
-        .btn-save:hover:not(:disabled) {
-            background: linear-gradient(135deg, rgba(95,195,245,0.3), rgba(167,139,250,0.3)) !important;
-            color: #fff !important;
-        }
-        .btn-save.saved {
-            background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(52,211,153,0.15)) !important;
-            border-color: rgba(52,211,153,0.3) !important; color: var(--siri-green) !important;
-        }
-
-        /* ── Firebase status ── */
-        .fb-status { width:100%; text-align:center; font-size:12px; padding:8px 14px; border-radius:10px; display:none; }
-        .fb-status.connected { display:block; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); color:var(--siri-green); }
-        .fb-status.disconnected { display:block; background:rgba(244,114,182,0.1); border:1px solid rgba(244,114,182,0.2); color:var(--siri-pink); }
-
-        /* ── Historie ── */
-        .historie-section { width: 100%; }
-        .historie-section .card-title { margin-bottom: 12px; }
-        .historie-list { display: flex; flex-direction: column; gap: 12px; }
-        .historie-empty {
-            text-align: center; padding: 24px 16px;
-            color: var(--text-tertiary); font-size: 14px;
-        }
-        .historie-card {
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 14px; padding: 16px; transition: background 0.2s;
-        }
-        .historie-card:hover { background: rgba(255,255,255,0.07); }
-        .historie-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 10px;
-        }
-        .historie-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-        .historie-date { font-size: 11px; color: var(--text-tertiary); }
-        .historie-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-        .historie-tag {
-            font-size: 11px; padding: 4px 10px; border-radius: 8px;
-            font-weight: 500; white-space: nowrap;
-        }
-        .tag-risiko { background: rgba(244,114,182,0.15); color: var(--siri-pink); }
-        .tag-massnahme { background: rgba(95,195,245,0.15); color: var(--siri-blue); }
-        .historie-situation {
-            font-size: 13px; color: var(--text-secondary); line-height: 1.5;
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .historie-card.expanded .historie-situation {
-            -webkit-line-clamp: unset;
-        }
-        .historie-toggle {
-            display: inline-block; margin-top: 6px; font-size: 12px;
-            color: var(--siri-blue); cursor: pointer; border: none;
-            background: none; font-family: inherit; padding: 0;
-        }
-        .historie-delete {
-            font-size: 11px; color: var(--text-tertiary); cursor: pointer;
-            background: none; border: none; padding: 4px 8px; border-radius: 6px;
-            font-family: inherit; transition: all 0.2s;
-        }
-        .historie-delete:hover { background: rgba(244,114,182,0.15); color: var(--siri-pink); }
-
-        /* ── Privacy ── */
-        .privacy {
-            font-size: 11px; color: var(--text-tertiary); text-align: center;
-            line-height: 1.5; max-width: 320px;
-        }
-
-        /* ── Responsive ── */
-        @media (max-width: 480px) {
-            .container { padding: 16px 16px 24px; gap: 14px; }
-            .orb-wrap { width: 96px; height: 96px; }
-            .orb-inner { width: 78px; height: 78px; }
-            .mic-icon { font-size: 28px; }
-            .card { padding: 16px; border-radius: 16px; }
-            .field-row { grid-template-columns: 1fr; }
-        }
-        @media (min-width: 481px) { .container { padding-top: 32px; } }
     </style>
 </head>
 <body>
-    <div class="bg-gradient"></div>
+<div class="bg-gradient"></div>
 
-    <div class="container">
-
-        <div class="api-key-wrap">
-            <span class="key-icon">🔑</span>
-            <input type="password" id="apiKey" placeholder="OpenAI API-Key eingeben" autocomplete="off">
+<!-- ═══════════════ VIEW: DASHBOARD ═══════════════ -->
+<div id="view-dashboard" class="view active">
+    <div class="topbar">
+        <div class="key-wrap">
+            <span class="ico">🔑</span>
+            <input type="password" id="apiKey" class="key-input" placeholder="OpenAI API-Key" autocomplete="off">
         </div>
+        <span class="fb-badge" id="fbBadge"></span>
+    </div>
 
-        <div class="fb-status" id="fbStatus"></div>
+    <div class="dash-header">
+        <h1>Bewohner</h1>
+    </div>
 
-        <!-- Orb -->
-        <div class="orb-section">
-            <div class="orb-wrap" id="orbBtn" role="button" tabindex="0" aria-label="Aufnahme starten" aria-pressed="false">
-                <div class="orb-glow"></div>
-                <div class="orb"><div class="orb-inner"><span class="mic-icon">🎙️</span></div></div>
+    <div class="search-wrap">
+        <span class="ico">🔍</span>
+        <input type="text" id="searchInput" placeholder="Bewohner suchen …" oninput="filterPatients()">
+    </div>
+
+    <button class="btn btn-primary" onclick="navigateTo('intake')">+ Neuen Bewohner aufnehmen</button>
+
+    <div class="patient-list" id="patientList">
+        <div class="empty-state">Lade Bewohner …</div>
+    </div>
+</div>
+
+<!-- ═══════════════ VIEW: NEUAUFNAHME ═══════════════ -->
+<div id="view-intake" class="view">
+    <button class="nav-back" onclick="navigateTo('dashboard')">← Zurück</button>
+    <h1 style="font-size:22px;font-weight:700;letter-spacing:-0.3px;align-self:flex-start">Neuaufnahme</h1>
+
+    <!-- A: Persönliche Angaben -->
+    <div class="section-card">
+        <div class="section-header open" onclick="toggleSection(this)"><h3>👤 Persönliche Angaben</h3><span class="chevron">▶</span></div>
+        <div class="section-body open">
+            <div class="form-row">
+                <div class="form-field"><label>Vorname <span class="req">*</span></label><input class="glass-input" id="in_vorname" placeholder="Vorname"></div>
+                <div class="form-field"><label>Nachname <span class="req">*</span></label><input class="glass-input" id="in_nachname" placeholder="Nachname"></div>
             </div>
-            <div class="waveform">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            </div>
-            <span class="orb-label" id="orbLabel">Antippen zum Sprechen</span>
-        </div>
-
-        <!-- Pflegebericht-Felder -->
-        <div class="card">
-            <div class="card-title">Pflegebericht</div>
-            <div class="fields-stack">
-                <div class="field">
-                    <label for="fieldBewohner">Bewohner / Kürzel</label>
-                    <input type="text" id="fieldBewohner" placeholder="z.B. Müller, H.">
+            <div class="form-row">
+                <div class="form-field"><label>Geburtsdatum <span class="req">*</span></label><input type="date" class="glass-input" id="in_geburtsdatum"></div>
+                <div class="form-field"><label>Geschlecht <span class="req">*</span></label>
+                    <select class="glass-input" id="in_geschlecht"><option value="">Bitte wählen</option><option>weiblich</option><option>männlich</option><option>divers</option></select>
                 </div>
-                <div class="field">
-                    <label for="fieldSituation">Aktuelle Situation / Befinden</label>
-                    <textarea id="fieldSituation" rows="2" placeholder="Was ist passiert? Aktueller Zustand …"></textarea>
-                </div>
-                <div class="field">
-                    <label for="fieldRisiken">Beobachtete Risiken</label>
-                    <textarea id="fieldRisiken" rows="2" placeholder="z.B. Dekubitusrisiko, Sturzgefahr …"></textarea>
-                </div>
-                <div class="field">
-                    <label for="fieldMassnahmen">Durchgeführte Maßnahmen</label>
-                    <textarea id="fieldMassnahmen" rows="2" placeholder="z.B. Lagerung, Vitalzeichenkontrolle …"></textarea>
-                </div>
             </div>
-        </div>
-
-        <!-- Gesamter Text -->
-        <div class="card">
-            <div class="card-title">Gesamter erkannter Text</div>
-            <div class="textarea-wrap">
-                <textarea id="fieldText" placeholder="Hier erscheint der gesprochene Text …" rows="4"></textarea>
-            </div>
-        </div>
-
-        <div class="status" id="status" aria-live="polite"></div>
-
-        <!-- Actions -->
-        <div class="actions">
-            <button id="btnRetry" onclick="retryExtraction()" disabled>Erneut extrahieren</button>
-            <button onclick="clearAll()">Felder leeren</button>
-            <button class="btn-save" id="btnSave" onclick="saveToFirebase()" disabled>
-                Bericht speichern
-            </button>
-        </div>
-
-        <!-- Historie -->
-        <div class="card historie-section" id="historieSection">
-            <div class="card-title">Historie / Gespeicherte Berichte</div>
-            <div class="historie-list" id="historieList">
-                <div class="historie-empty">Noch keine Berichte gespeichert.</div>
-            </div>
-        </div>
-
-        <div class="privacy">
-            Audio wird extern verarbeitet (Web Speech API).
-            Text wird zur Analyse an OpenAI gesendet.
-            Berichte werden in Firebase gespeichert.
+            <div class="form-field"><label>Konfession</label><input class="glass-input" id="in_konfession" placeholder="z.B. katholisch"></div>
         </div>
     </div>
 
-    <script>
-    /* ═══════════════════════════════════════════════════════════════
-       🔥 FIREBASE KONFIGURATION
-       ═══════════════════════════════════════════════════════════════ */
-    const firebaseConfig = {
-        apiKey:            "AIzaSyCYOzDXQc1fAhamPDlrg_0zoClG25TV88k",
-        authDomain:        "voice-to-text-70b90.firebaseapp.com",
-        projectId:         "voice-to-text-70b90",
-        storageBucket:     "voice-to-text-70b90.firebasestorage.app",
-        messagingSenderId: "66935850901",
-        appId:             "1:66935850901:web:4c2a582a15b00d9f32589c"
-    };
+    <!-- B: Aufnahme & Versicherung -->
+    <div class="section-card">
+        <div class="section-header" onclick="toggleSection(this)"><h3>📋 Aufnahme & Versicherung</h3><span class="chevron">▶</span></div>
+        <div class="section-body">
+            <div class="form-row">
+                <div class="form-field"><label>Einzugsdatum <span class="req">*</span></label><input type="date" class="glass-input" id="in_einzugsdatum"></div>
+                <div class="form-field"><label>Pflegegrad</label>
+                    <select class="glass-input" id="in_pflegegrad"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+                </div>
+            </div>
+            <div class="form-field"><label>Krankenkasse</label><input class="glass-input" id="in_krankenkasse" placeholder="z.B. AOK Bayern"></div>
+            <div class="form-field"><label>Versichertennummer</label><input class="glass-input" id="in_versichertennummer"></div>
+            <div class="form-field"><label>Kostenübernahme</label><input class="glass-input" id="in_kostenuebernahme" placeholder="z.B. Pflegekasse + Eigenanteil"></div>
+        </div>
+    </div>
 
-    let db = null;
-    let firebaseReady = false;
+    <!-- C: Medizinische Daten -->
+    <div class="section-card">
+        <div class="section-header" onclick="toggleSection(this)"><h3>🩺 Medizinische Daten</h3><span class="chevron">▶</span></div>
+        <div class="section-body">
+            <div class="form-field"><label>Diagnosen</label><textarea class="glass-input" id="in_diagnosen" rows="2" placeholder="z.B. Demenz (F00.1), Diabetes Typ 2"></textarea></div>
+            <div class="form-field"><label>Allergien</label><input class="glass-input" id="in_allergien" placeholder="z.B. Penicillin, Latex"></div>
+            <div class="form-field"><label>Kostform</label><input class="glass-input" id="in_kostform" placeholder="z.B. Diabetiker-Kost, passiert"></div>
+        </div>
+    </div>
+
+    <!-- D: Medizinische Versorgung -->
+    <div class="section-card">
+        <div class="section-header" onclick="toggleSection(this)"><h3>🏥 Medizinische Versorgung</h3><span class="chevron">▶</span></div>
+        <div class="section-body">
+            <div class="form-row">
+                <div class="form-field"><label>Hausarzt</label><input class="glass-input" id="in_hausarzt" placeholder="Name, Tel."></div>
+                <div class="form-field"><label>Zahnarzt</label><input class="glass-input" id="in_zahnarzt" placeholder="Name, Tel."></div>
+            </div>
+            <div class="form-field"><label>Fachärzte</label><textarea class="glass-input" id="in_fachaerzte" rows="2" placeholder="Neurologe, Kardiologe …"></textarea></div>
+            <div class="form-field"><label>Therapien</label><textarea class="glass-input" id="in_therapien" rows="2" placeholder="Krankengymnastik, Ergotherapie …"></textarea></div>
+            <div class="form-field"><label>Hilfsmittel</label><textarea class="glass-input" id="in_hilfsmittel" rows="2" placeholder="Rollator, Hörgerät …"></textarea></div>
+            <div class="form-field"><label>Besonderes</label><textarea class="glass-input" id="in_besonderes_medizinisch" rows="2" placeholder="Herzschrittmacher, Schmerzpumpe …"></textarea></div>
+        </div>
+    </div>
+
+    <!-- E: Soziale Versorgung -->
+    <div class="section-card">
+        <div class="section-header" onclick="toggleSection(this)"><h3>👥 Soziale Versorgung & Recht</h3><span class="chevron">▶</span></div>
+        <div class="section-body">
+            <div class="form-field"><label>Bezugsperson (Name, Tel.)</label><input class="glass-input" id="in_bezugsperson" placeholder="Tochter Maria, 0170-…"></div>
+            <div class="form-row">
+                <div class="form-field"><label>Gesetzl. Betreuer</label><input class="glass-input" id="in_gesetzlicher_betreuer"></div>
+                <div class="form-field"><label>Wirkungskreis</label><input class="glass-input" id="in_betreuer_wirkungskreis" placeholder="Gesundheit, Finanzen"></div>
+            </div>
+            <div class="form-field"><label>Vorsorgevollmacht</label><textarea class="glass-input" id="in_vollmacht" rows="2"></textarea></div>
+            <div class="form-field"><label>Patientenverfügung</label><textarea class="glass-input" id="in_patientenverfuegung" rows="2" placeholder="z.B. keine Reanimation"></textarea></div>
+            <div class="form-field"><label>Seelsorger</label><input class="glass-input" id="in_seelsorger"></div>
+        </div>
+    </div>
+
+    <!-- F: Biografie -->
+    <div class="section-card">
+        <div class="section-header" onclick="toggleSection(this)"><h3>📖 Biografie</h3><span class="chevron">▶</span></div>
+        <div class="section-body">
+            <div class="form-field"><label>Familiäre Situation</label><textarea class="glass-input" id="in_familiaere_situation" rows="2" placeholder="Verwitwet, 2 Kinder …"></textarea></div>
+            <div class="form-row">
+                <div class="form-field"><label>Herkunft</label><input class="glass-input" id="in_herkunft" placeholder="München"></div>
+                <div class="form-field"><label>Beruf</label><input class="glass-input" id="in_beruf" placeholder="Lehrerin (pens.)"></div>
+            </div>
+            <div class="form-field"><label>Sprache</label><input class="glass-input" id="in_sprache" placeholder="Deutsch, bayerisch"></div>
+            <div class="form-field"><label>Verhaltensweisen</label><textarea class="glass-input" id="in_verhaltensweisen" rows="2" placeholder="Abendliche Unruhe, Wanderverhalten …"></textarea></div>
+            <div class="form-field"><label>Prägende Ereignisse</label><textarea class="glass-input" id="in_praegende_ereignisse" rows="2"></textarea></div>
+        </div>
+    </div>
+
+    <div class="intake-footer">
+        <button class="btn btn-primary" id="btnIntakeSave" onclick="savePatient()">Bewohner aufnehmen</button>
+    </div>
+    <div class="status" id="intakeStatus"></div>
+</div>
+
+<!-- ═══════════════ VIEW: PATIENTENAKTE ═══════════════ -->
+<div id="view-patient" class="view">
+    <div style="width:100%;display:flex;justify-content:space-between;align-items:center">
+        <button class="nav-back" onclick="navigateTo('dashboard')">← Bewohner</button>
+    </div>
+
+    <!-- Kopf -->
+    <div class="card" id="akteHeader"></div>
+
+    <!-- Orb -->
+    <div class="orb-section">
+        <div class="orb-wrap" id="orbBtn" role="button" tabindex="0" aria-label="Aufnahme starten">
+            <div class="orb-glow"></div>
+            <div class="orb"><div class="orb-inner"><span class="mic-icon">🎙️</span></div></div>
+        </div>
+        <div class="waveform"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        <span class="orb-label" id="orbLabel">Antippen zum Sprechen</span>
+    </div>
+
+    <!-- Volltext -->
+    <div class="card">
+        <div class="card-title">Erkannter Text</div>
+        <textarea class="glass-input" id="fieldText" placeholder="Hier erscheint der gesprochene Text …" rows="3" style="min-height:80px"></textarea>
+    </div>
+
+    <!-- SIS Cards -->
+    <div class="sis-cards" id="sisCards">
+        <div class="sis-card" style="--tf-color:var(--tf-leit)"><div class="sis-title">Leitfrage</div><textarea id="sis_leitfrage" placeholder="Was bewegt den Bewohner?"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--tf-1)"><div class="sis-title">TF1 — Kognition & Kommunikation</div><textarea id="sis_kognition" placeholder="Orientierung, Gedächtnis, Kommunikation …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--tf-2)"><div class="sis-title">TF2 — Mobilität & Beweglichkeit</div><textarea id="sis_mobilitaet" placeholder="Fortbewegung, Transfer, Hilfsmittel …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--tf-3)"><div class="sis-title">TF3 — Krankheitsbezogene Anforderungen</div><textarea id="sis_krankheit" placeholder="Vitalzeichen, Medikation, Symptome …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--tf-4)"><div class="sis-title">TF4 — Selbstversorgung</div><textarea id="sis_selbstversorgung" placeholder="Körperpflege, Ernährung, Kontinenz …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--tf-5)"><div class="sis-title">TF5 — Soziale Beziehungen</div><textarea id="sis_soziales" placeholder="Kontakte, Aktivitäten, Stimmung …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--tf-6)"><div class="sis-title">TF6 — Haushaltsführung</div><textarea id="sis_haushalt" placeholder="Alltagspraktische Tätigkeiten …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--siri-pink)"><div class="sis-title">Risiken</div><textarea id="sis_risiken" placeholder="Dekubitus, Sturz, Inkontinenz …"></textarea></div>
+        <div class="sis-card" style="--tf-color:var(--siri-blue)"><div class="sis-title">Maßnahmen</div><textarea id="sis_massnahmen" placeholder="Lagerung, Vitalzeichen, Prophylaxe …"></textarea></div>
+    </div>
+
+    <div class="status" id="akteStatus" aria-live="polite"></div>
+
+    <div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button class="btn" id="btnRetry" onclick="retryExtraction()" disabled>Erneut extrahieren</button>
+        <button class="btn" onclick="clearSisFields()">Felder leeren</button>
+    </div>
+    <button class="btn btn-primary" id="btnSaveReport" onclick="saveReport()" disabled>Bericht speichern</button>
+
+    <!-- Historie -->
+    <div class="card" style="margin-top:4px">
+        <div class="card-title">Historie</div>
+        <div class="historie-list" id="reportList"><div class="empty-hist">Noch keine Berichte.</div></div>
+    </div>
+
+    <div class="privacy">Audio wird extern verarbeitet (Web Speech API). Text wird an OpenAI gesendet. Daten in Firebase gespeichert.</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   FIREBASE
+   ═══════════════════════════════════════════════ */
+const firebaseConfig = {
+    apiKey: "AIzaSyCYOzDXQc1fAhamPDlrg_0zoClG25TV88k",
+    authDomain: "voice-to-text-70b90.firebaseapp.com",
+    projectId: "voice-to-text-70b90",
+    storageBucket: "voice-to-text-70b90.firebasestorage.app",
+    messagingSenderId: "66935850901",
+    appId: "1:66935850901:web:4c2a582a15b00d9f32589c"
+};
+
+let db = null, firebaseReady = false;
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    firebaseReady = true;
+    document.getElementById('fbBadge').textContent = 'Firebase ✓';
+    document.getElementById('fbBadge').className = 'fb-badge ok';
+} catch (e) {
+    document.getElementById('fbBadge').textContent = 'Firebase ✗';
+    document.getElementById('fbBadge').className = 'fb-badge err';
+}
+
+/* ═══════════════════════════════════════════════
+   NAVIGATION
+   ═══════════════════════════════════════════════ */
+let currentPatientId = null;
+let allPatients = [];
+
+function navigateTo(view, data = {}) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (view === 'dashboard') loadPatients();
+    if (view === 'patient' && data.patientId) {
+        currentPatientId = data.patientId;
+        loadPatientAkte(data.patientId);
+    }
+    if (view === 'intake') clearIntakeForm();
+}
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD
+   ═══════════════════════════════════════════════ */
+async function loadPatients() {
+    if (!db) return;
+    const list = document.getElementById('patientList');
+    try {
+        const snap = await db.collection('patients').orderBy('nachname').get();
+        allPatients = [];
+        snap.forEach(doc => allPatients.push({ id: doc.id, ...doc.data() }));
+        renderPatients(allPatients);
+    } catch (e) {
+        list.innerHTML = '<div class="empty-state">Fehler: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderPatients(pts) {
+    const list = document.getElementById('patientList');
+    if (!pts.length) { list.innerHTML = '<div class="empty-state">Noch keine Bewohner angelegt.</div>'; return; }
+    list.innerHTML = pts.map(p => {
+        const age = p.geburtsdatum ? calcAge(p.geburtsdatum) : '';
+        return '<div class="patient-card" onclick="navigateTo(\'patient\',{patientId:\'' + p.id + '\'})">' +
+            '<div class="pc-name">' + esc(p.nachname) + ', ' + esc(p.vorname) + '</div>' +
+            '<div class="pc-meta">' +
+                (age ? '<span>' + age + ' Jahre</span>' : '') +
+                (p.pflegegrad ? '<span class="pc-tag">PG ' + esc(p.pflegegrad) + '</span>' : '') +
+                (p.diagnosen ? '<span>' + esc(p.diagnosen.substring(0, 40)) + (p.diagnosen.length > 40 ? '…' : '') + '</span>' : '') +
+            '</div></div>';
+    }).join('');
+}
+
+function filterPatients() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    renderPatients(allPatients.filter(p => (p.vorname + ' ' + p.nachname).toLowerCase().includes(q)));
+}
+
+function calcAge(d) {
+    const b = new Date(d), today = new Date();
+    let age = today.getFullYear() - b.getFullYear();
+    if (today.getMonth() < b.getMonth() || (today.getMonth() === b.getMonth() && today.getDate() < b.getDate())) age--;
+    return age;
+}
+
+/* ═══════════════════════════════════════════════
+   NEUAUFNAHME
+   ═══════════════════════════════════════════════ */
+const intakeFields = ['vorname','nachname','geburtsdatum','geschlecht','konfession','einzugsdatum','pflegegrad','krankenkasse','versichertennummer','kostenuebernahme','diagnosen','allergien','kostform','hausarzt','zahnarzt','fachaerzte','therapien','hilfsmittel','besonderes_medizinisch','bezugsperson','gesetzlicher_betreuer','betreuer_wirkungskreis','vollmacht','patientenverfuegung','seelsorger','familiaere_situation','herkunft','beruf','sprache','verhaltensweisen','praegende_ereignisse'];
+
+function toggleSection(header) {
+    header.classList.toggle('open');
+    header.nextElementSibling.classList.toggle('open');
+}
+
+function clearIntakeForm() {
+    intakeFields.forEach(f => { const el = document.getElementById('in_' + f); if (el) el.value = ''; });
+    document.getElementById('intakeStatus').textContent = '';
+}
+
+async function savePatient() {
+    const v = id => (document.getElementById('in_' + id)?.value || '').trim();
+    if (!v('vorname') || !v('nachname') || !v('geburtsdatum') || !v('geschlecht') || !v('einzugsdatum')) {
+        showMsg('intakeStatus', 'Bitte Pflichtfelder ausfüllen (markiert mit *).', 'error');
+        return;
+    }
+    if (!db) { showMsg('intakeStatus', 'Firebase nicht verbunden.', 'error'); return; }
+
+    const data = {};
+    intakeFields.forEach(f => data[f] = v(f));
+    data.erstellt_am = firebase.firestore.FieldValue.serverTimestamp();
+    data.aktualisiert_am = firebase.firestore.FieldValue.serverTimestamp();
+
+    document.getElementById('btnIntakeSave').disabled = true;
+    document.getElementById('btnIntakeSave').textContent = 'Wird gespeichert …';
 
     try {
-        if (firebaseConfig.apiKey !== "DEIN_FIREBASE_API_KEY") {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            firebaseReady = true;
-            showFbStatus('Firebase verbunden', 'connected');
-            loadHistorie();
-        } else {
-            showFbStatus('Firebase nicht konfiguriert', 'disconnected');
-        }
+        await db.collection('patients').add(data);
+        showMsg('intakeStatus', 'Bewohner aufgenommen!', 'success');
+        setTimeout(() => navigateTo('dashboard'), 800);
     } catch (e) {
-        showFbStatus('Firebase-Fehler: ' + e.message, 'disconnected');
+        showMsg('intakeStatus', 'Fehler: ' + e.message, 'error');
+    } finally {
+        document.getElementById('btnIntakeSave').disabled = false;
+        document.getElementById('btnIntakeSave').textContent = 'Bewohner aufnehmen';
     }
+}
 
-    function showFbStatus(msg, type) {
-        const el = document.getElementById('fbStatus');
-        el.textContent = msg;
-        el.className = 'fb-status ' + type;
+/* ═══════════════════════════════════════════════
+   PATIENTENAKTE
+   ═══════════════════════════════════════════════ */
+let currentPatientData = null;
+
+async function loadPatientAkte(id) {
+    if (!db) return;
+    clearSisFields();
+    document.getElementById('fieldText').value = '';
+    document.getElementById('btnRetry').disabled = true;
+    document.getElementById('btnSaveReport').disabled = true;
+
+    try {
+        const doc = await db.collection('patients').doc(id).get();
+        if (!doc.exists) { showMsg('akteStatus', 'Bewohner nicht gefunden.', 'error'); return; }
+        currentPatientData = doc.data();
+        const p = currentPatientData;
+        const age = p.geburtsdatum ? calcAge(p.geburtsdatum) : '';
+
+        document.getElementById('akteHeader').innerHTML =
+            '<div class="akte-info">' +
+                '<h2>' + esc(p.vorname) + ' ' + esc(p.nachname) + '</h2>' +
+                '<div class="meta">' +
+                    (p.geburtsdatum ? '*' + formatDateShort(p.geburtsdatum) + (age ? ' (' + age + ' J.)' : '') + '<br>' : '') +
+                    (p.einzugsdatum ? 'Einzug: ' + formatDateShort(p.einzugsdatum) : '') +
+                '</div>' +
+                '<div class="akte-tags">' +
+                    (p.pflegegrad ? '<span class="akte-tag tag-pg">Pflegegrad ' + esc(p.pflegegrad) + '</span>' : '') +
+                    (p.allergien ? '<span class="akte-tag tag-allergy">⚠ ' + esc(p.allergien) + '</span>' : '') +
+                    (p.diagnosen ? '<span class="akte-tag tag-diag">' + esc(p.diagnosen.substring(0, 50)) + '</span>' : '') +
+                '</div>' +
+            '</div>';
+
+        loadReports(id);
+    } catch (e) {
+        showMsg('akteStatus', 'Fehler: ' + e.message, 'error');
     }
+}
 
-    // ── State ──
-    let recognition = null;
-    let isRecordingIntended = false;
-    let finalTranscript = '';
-    let restartCount = 0;
-    let lastRestartTime = 0;
+/* ═══════════════════════════════════════════════
+   VOICE-TO-TEXT (Web Speech API)
+   ═══════════════════════════════════════════════ */
+let recognition = null, isRecordingIntended = false, finalTranscript = '', restartCount = 0, lastRestartTime = 0;
 
-    // ── DOM ──
-    const orbBtn   = document.getElementById('orbBtn');
-    const orbLabel = document.getElementById('orbLabel');
-    const statusEl = document.getElementById('status');
-    const textArea = document.getElementById('fieldText');
-    const btnRetry = document.getElementById('btnRetry');
-    const btnSave  = document.getElementById('btnSave');
-    const fieldIds = ['fieldBewohner', 'fieldSituation', 'fieldRisiken', 'fieldMassnahmen'];
+document.getElementById('orbBtn').addEventListener('click', toggleRecording);
+document.getElementById('orbBtn').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRecording(); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && isRecordingIntended) stopRecording(); });
 
-    // ── Events ──
-    orbBtn.addEventListener('click', toggleRecording);
-    orbBtn.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRecording(); }
-    });
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && isRecordingIntended) stopRecording();
-    });
-    fieldIds.forEach(id => document.getElementById(id).addEventListener('input', updateSaveButton));
+function toggleRecording() { isRecordingIntended ? stopRecording() : startRecording(); }
 
-    function updateSaveButton() {
-        const hasData = fieldIds.some(id => document.getElementById(id).value.trim());
-        btnSave.disabled = !hasData || !firebaseReady;
-    }
-
-    // ── Recording ──
-    function toggleRecording() {
-        isRecordingIntended ? stopRecording() : startRecording();
-    }
-
-    function startRecording() {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { showStatus('Bitte Chrome oder Edge verwenden.', 'error'); return; }
-
-        finalTranscript = '';
-        textArea.value = '';
-        clearFields();
-        restartCount = 0;
-
-        recognition = new SR();
-        recognition.lang = 'de-DE';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
-        recognition.onresult = handleResult;
-        recognition.onerror = handleError;
-        recognition.onend = handleEnd;
-        recognition.start();
-        isRecordingIntended = true;
-
-        document.body.classList.add('recording');
-        orbBtn.setAttribute('aria-pressed', 'true');
-        orbLabel.textContent = 'Zuhören …';
-        showStatus('');
-    }
-
-    function stopRecording() {
-        isRecordingIntended = false;
-        if (recognition) { recognition.onend = null; recognition.onerror = null; recognition.stop(); recognition = null; }
-        document.body.classList.remove('recording');
-        orbBtn.setAttribute('aria-pressed', 'false');
-        orbLabel.textContent = 'Antippen zum Sprechen';
-
-        const text = textArea.value.trim();
-        if (text) { finalTranscript = text; btnRetry.disabled = false; analyzeWithOpenAI(text); }
-        else { showStatus('Kein Text erkannt.', 'error'); }
-    }
-
-    function handleResult(event) {
-        let interim = '', accumulated = '';
-        for (let i = 0; i < event.results.length; i++) {
-            const t = event.results[i][0].transcript;
-            if (event.results[i].isFinal) accumulated += t + ' ';
-            else interim += t;
+function startRecording() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showMsg('akteStatus', 'Bitte Chrome verwenden.', 'error'); return; }
+    finalTranscript = ''; document.getElementById('fieldText').value = '';
+    clearSisFields(); restartCount = 0;
+    recognition = new SR();
+    recognition.lang = 'de-DE'; recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
+    recognition.onresult = e => {
+        let interim = '', acc = '';
+        for (let i = 0; i < e.results.length; i++) {
+            if (e.results[i].isFinal) acc += e.results[i][0].transcript + ' ';
+            else interim += e.results[i][0].transcript;
         }
-        if (accumulated) finalTranscript = accumulated;
-        textArea.value = (finalTranscript + interim).trim();
-        textArea.scrollTop = textArea.scrollHeight;
-    }
-
-    function handleError(event) {
-        if (['no-speech', 'aborted'].includes(event.error)) return;
-        const m = { 'not-allowed':'Mikrofonzugriff verweigert.', 'audio-capture':'Kein Mikrofon gefunden.', 'network':'Netzwerkfehler.', 'service-not-allowed':'Dienst nicht verfügbar.' };
-        showStatus(m[event.error] || 'Fehler: ' + event.error, 'error');
-    }
-
-    function handleEnd() {
+        if (acc) finalTranscript = acc;
+        const ta = document.getElementById('fieldText');
+        ta.value = (finalTranscript + interim).trim();
+        ta.scrollTop = ta.scrollHeight;
+    };
+    recognition.onerror = e => { if (!['no-speech','aborted'].includes(e.error)) showMsg('akteStatus', 'Fehler: ' + e.error, 'error'); };
+    recognition.onend = () => {
         if (!isRecordingIntended) return;
         const now = Date.now();
         restartCount = (now - lastRestartTime < 10000) ? restartCount + 1 : 1;
         lastRestartTime = now;
-        if (restartCount > 5) { showStatus('Spracherkennung abgebrochen.', 'error'); stopRecording(); return; }
-        setTimeout(() => {
-            if (isRecordingIntended && recognition) { try { recognition.start(); } catch (_) {} }
-        }, 300);
-    }
+        if (restartCount > 5) { showMsg('akteStatus', 'Spracherkennung abgebrochen.', 'error'); stopRecording(); return; }
+        setTimeout(() => { if (isRecordingIntended && recognition) try { recognition.start(); } catch (_) {} }, 300);
+    };
+    recognition.start(); isRecordingIntended = true;
+    document.body.classList.add('recording');
+    document.getElementById('orbLabel').textContent = 'Zuhören …';
+    showMsg('akteStatus', '');
+}
 
-    // ── OpenAI Extraction ──
-    async function analyzeWithOpenAI(text) {
-        const apiKey = document.getElementById('apiKey').value.trim();
-        if (!apiKey) { showStatus('Bitte OpenAI API-Key eingeben.', 'error'); return; }
+function stopRecording() {
+    isRecordingIntended = false;
+    if (recognition) { recognition.onend = null; recognition.onerror = null; recognition.stop(); recognition = null; }
+    document.body.classList.remove('recording');
+    document.getElementById('orbLabel').textContent = 'Antippen zum Sprechen';
+    const text = document.getElementById('fieldText').value.trim();
+    if (text) { finalTranscript = text; document.getElementById('btnRetry').disabled = false; analyzeWithOpenAI(text); }
+    else showMsg('akteStatus', 'Kein Text erkannt.', 'error');
+}
 
-        showStatus('Pflegebericht wird analysiert …', 'analyzing');
-        setFieldsLoading(true);
+/* ═══════════════════════════════════════════════
+   OPENAI EXTRACTION (SIS)
+   ═══════════════════════════════════════════════ */
+const sisFieldIds = ['sis_leitfrage','sis_kognition','sis_mobilitaet','sis_krankheit','sis_selbstversorgung','sis_soziales','sis_haushalt','sis_risiken','sis_massnahmen'];
+const sisKeys = ['leitfrage','kognition','mobilitaet','krankheit','selbstversorgung','soziales','haushalt','risiken','massnahmen'];
 
-        const systemPrompt = `Du bist ein erfahrener Pflegeexperte und Datenextraktions-Assistent für die ambulante und stationäre Pflege. Du kennst die Strukturierte Informationssammlung (SIS) und die Pflegedokumentation nach den 6 Themenbereichen.
+async function analyzeWithOpenAI(text) {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) { showMsg('akteStatus', 'Bitte OpenAI API-Key eingeben.', 'error'); return; }
+    showMsg('akteStatus', 'SIS-Analyse läuft …', 'analyzing');
+    sisFieldIds.forEach(id => { const el = document.getElementById(id); el.value = '…'; el.classList.add('loading'); });
 
-Analysiere den folgenden transkribierten Sprachtext einer Pflegekraft und extrahiere strukturierte Daten für einen Pflegebericht.
+    const sysPrompt = `Du bist ein erfahrener Pflegeexperte, spezialisiert auf die Strukturierte Informationssammlung (SIS) nach dem Strukturmodell der Pflegedokumentation in Deutschland.
 
-Extrahiere diese Felder:
+Analysiere den transkribierten Sprachtext einer Pflegefachkraft und ordne die Informationen den SIS-Themenfeldern zu.
 
-1. bewohner – Name oder Kürzel des Bewohners/Patienten. Korrigiere offensichtliche Transkriptionsfehler bei Namen.
+Extrahiere:
+1. leitfrage – Perspektive des Bewohners: Was bewegt ihn? Was braucht er? Indirekte Rede.
+2. kognition – TF1: Kognitive und kommunikative Fähigkeiten. Orientierung (zeitlich, örtlich, Person, situativ), Gedächtnis, Kommunikation, Entscheidungsfähigkeit.
+3. mobilitaet – TF2: Mobilität und Beweglichkeit. Fortbewegung, Positionswechsel, Transfer, Gleichgewicht, Hilfsmittel (Rollator, Rollstuhl), Sturzgefährdung.
+4. krankheit – TF3: Krankheitsbezogene Anforderungen und Belastungen. Vitalzeichen, Medikation, Wundversorgung, Therapien, Symptome, Arztbesuche.
+5. selbstversorgung – TF4: Selbstversorgung. Körperpflege, An-/Auskleiden, Essen/Trinken, Ausscheidung, Kontinenz. Grad der Selbstständigkeit.
+6. soziales – TF5: Leben in sozialen Beziehungen. Angehörigenkontakte, Aktivitäten, Tagesstruktur, Stimmung, Rückzug, Ängste.
+7. haushalt – TF6: Haushaltsführung. Alltagspraktische Tätigkeiten, Wäsche, Einkaufen. Bei stationär: Beteiligung an Aktivitäten.
+8. risiken – Erkannte Risiken (kommagetrennt): Dekubitus, Sturz, Inkontinenz, Schmerz, Ernährung/Dehydration, Kontrakturen, Pneumonie, Thrombose, Demenz/Delir, Munderkrankungen.
+9. massnahmen – Durchgeführte/geplante Maßnahmen (kommagetrennt): Lagerung, Vitalzeichen, Medikamente, Wundversorgung, Prophylaxe, Arzt informiert, etc.
 
-2. situation – Aktuelle Situation und Befinden. Fasse zusammen: Was ist passiert? Wie geht es dem Bewohner? Beziehe dich auf die SIS-Themenbereiche (Kognition, Mobilität, Körperpflege, Ernährung, Kontinenz, soziale Teilhabe). Formuliere in knappen, professionellen Sätzen.
+REGELN:
+- NIEMALS erfinden. Fehlende Info = leerer String "".
+- Spracherkennung kann Fehler enthalten – wohlwollend interpretieren.
+- Professionelle Pflegeterminologie. Kurze, prägnante Sätze.
+- NUR JSON-Objekt zurückgeben.`;
 
-3. risiken – Beobachtete oder relevante Risiken. Erkenne aus dem Text pflegerelevante Risiken wie:
-   - Dekubitusrisiko (Druckgeschwüre, Hautrötungen, Immobilität)
-   - Sturzrisiko (Gangunsicherheit, Schwindel, Stolpern)
-   - Kontrakturrisiko (Bewegungseinschränkungen)
-   - Dehydrationsrisiko (wenig getrunken, trockene Schleimhäute)
-   - Mangelernährung (wenig gegessen, Gewichtsverlust)
-   - Pneumonierisiko (flache Atmung, Immobilität)
-   - Inkontinenz
-   - Verwirrtheit / Desorientierung
-   - Schmerzen
-   Gib nur tatsächlich im Text genannte oder klar ableitbare Risiken an. Formatiere als kommagetrennte Liste.
-
-4. massnahmen – Durchgeführte oder geplante Maßnahmen. Erkenne pflegerische Interventionen wie:
-   - Lagerung / Positionswechsel / Mobilisation
-   - Vitalzeichenkontrolle (Blutdruck, Puls, Temperatur, Blutzucker)
-   - Medikamentengabe
-   - Wundversorgung / Verbandswechsel
-   - Körperpflege / Hautpflege
-   - Ernährung / Flüssigkeitszufuhr sichergestellt
-   - Sturzprophylaxe / Hilfsmittel bereitgestellt
-   - Arzt informiert / Angehörige informiert
-   - Beobachtung / Überwachung
-   Formuliere als kommagetrennte Liste konkreter Maßnahmen.
-
-WICHTIGE REGELN:
-- NIEMALS Daten erfinden. Fehlende Information → leerer String "".
-- Der Text stammt aus automatischer Spracherkennung und enthält möglicherweise Fehler. Interpretiere wohlwollend.
-- Verwende professionelle Pflegeterminologie.
-- Antworte ausschließlich mit dem JSON-Objekt.`;
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-
-        try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: text }
-                    ],
-                    temperature: 0.1,
-                    response_format: {
-                        type: 'json_schema',
-                        json_schema: {
-                            name: 'pflegebericht',
-                            strict: true,
-                            schema: {
-                                type: 'object',
-                                properties: {
-                                    bewohner:   { type: 'string' },
-                                    situation:  { type: 'string' },
-                                    risiken:    { type: 'string' },
-                                    massnahmen: { type: 'string' }
-                                },
-                                required: ['bewohner', 'situation', 'risiken', 'massnahmen'],
-                                additionalProperties: false
-                            }
-                        }
-                    }
-                }),
-                signal: controller.signal
-            });
-            clearTimeout(timeout);
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                const m = { 401:'Ungültiger API-Key.', 429:'Zu viele Anfragen.', 500:'OpenAI nicht erreichbar.', 502:'OpenAI nicht erreichbar.', 503:'OpenAI nicht erreichbar.' };
-                throw new Error(m[response.status] || err.error?.message || 'API-Fehler ' + response.status);
-            }
-
-            const data = await response.json();
-            const parsed = JSON.parse(data.choices[0].message.content.trim());
-
-            document.getElementById('fieldBewohner').value   = parsed.bewohner || '';
-            document.getElementById('fieldSituation').value  = parsed.situation || '';
-            document.getElementById('fieldRisiken').value    = parsed.risiken || '';
-            document.getElementById('fieldMassnahmen').value = parsed.massnahmen || '';
-
-            setFieldsLoading(false);
-            updateSaveButton();
-            showStatus('Analyse abgeschlossen', 'success');
-            setTimeout(() => showStatus(''), 3000);
-
-        } catch (err) {
-            clearTimeout(timeout);
-            setFieldsLoading(false);
-            if (err.name === 'AbortError') showStatus('Zeitüberschreitung.', 'error');
-            else if (err.message === 'Failed to fetch') showStatus('Keine Internetverbindung.', 'error');
-            else showStatus(err.message, 'error');
-        }
-    }
-
-    // ── Firebase Save ──
-    async function saveToFirebase() {
-        if (!db) { showStatus('Firebase nicht konfiguriert.', 'error'); return; }
-
-        const data = {
-            bewohner:   document.getElementById('fieldBewohner').value.trim(),
-            situation:  document.getElementById('fieldSituation').value.trim(),
-            risiken:    document.getElementById('fieldRisiken').value.trim(),
-            massnahmen: document.getElementById('fieldMassnahmen').value.trim(),
-            text:       textArea.value.trim(),
-            timestamp:  firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        btnSave.disabled = true;
-        btnSave.textContent = 'Wird gespeichert …';
-
-        try {
-            await db.collection('pflegeberichte').add(data);
-
-            btnSave.textContent = 'Gespeichert ✓';
-            btnSave.classList.add('saved');
-            showStatus('Bericht gespeichert', 'success');
-            loadHistorie();
-
-            setTimeout(() => {
-                btnSave.textContent = 'Bericht speichern';
-                btnSave.classList.remove('saved');
-                updateSaveButton();
-                showStatus('');
-            }, 3000);
-        } catch (err) {
-            btnSave.disabled = false;
-            btnSave.textContent = 'Bericht speichern';
-            showStatus('Speichern fehlgeschlagen: ' + err.message, 'error');
-        }
-    }
-
-    // ── Firebase Load Historie ──
-    async function loadHistorie() {
-        if (!db) return;
-        const list = document.getElementById('historieList');
-
-        try {
-            const snap = await db.collection('pflegeberichte').orderBy('timestamp', 'desc').limit(50).get();
-
-            if (snap.empty) {
-                list.innerHTML = '<div class="historie-empty">Noch keine Berichte gespeichert.</div>';
-                return;
-            }
-
-            list.innerHTML = '';
-            snap.forEach(doc => {
-                const d = doc.data();
-                const date = d.timestamp ? d.timestamp.toDate() : new Date();
-                const card = document.createElement('div');
-                card.className = 'historie-card';
-                card.dataset.id = doc.id;
-
-                const risiken = d.risiken ? d.risiken.split(',').map(r =>
-                    '<span class="historie-tag tag-risiko">' + r.trim() + '</span>'
-                ).join('') : '';
-
-                const massnahmen = d.massnahmen ? d.massnahmen.split(',').map(m =>
-                    '<span class="historie-tag tag-massnahme">' + m.trim() + '</span>'
-                ).join('') : '';
-
-                card.innerHTML =
-                    '<div class="historie-header">' +
-                        '<span class="historie-name">' + esc(d.bewohner || 'Unbekannt') + '</span>' +
-                        '<div style="display:flex;align-items:center;gap:8px">' +
-                            '<span class="historie-date">' + formatDate(date) + '</span>' +
-                            '<button class="historie-delete" onclick="deleteEntry(\'' + doc.id + '\')" title="Löschen">✕</button>' +
-                        '</div>' +
-                    '</div>' +
-                    (risiken || massnahmen ?
-                        '<div class="historie-tags">' + risiken + massnahmen + '</div>' : '') +
-                    '<div class="historie-situation">' + esc(d.situation || '') + '</div>' +
-                    (d.situation && d.situation.length > 150 ?
-                        '<button class="historie-toggle" onclick="toggleExpand(this)">Mehr anzeigen</button>' : '');
-
-                list.appendChild(card);
-            });
-        } catch (err) {
-            list.innerHTML = '<div class="historie-empty">Fehler beim Laden: ' + esc(err.message) + '</div>';
-        }
-    }
-
-    function toggleExpand(btn) {
-        const card = btn.closest('.historie-card');
-        card.classList.toggle('expanded');
-        btn.textContent = card.classList.contains('expanded') ? 'Weniger' : 'Mehr anzeigen';
-    }
-
-    async function deleteEntry(id) {
-        if (!db) return;
-        try {
-            await db.collection('pflegeberichte').doc(id).delete();
-            loadHistorie();
-            showStatus('Eintrag gelöscht', 'success');
-            setTimeout(() => showStatus(''), 2000);
-        } catch (err) {
-            showStatus('Löschen fehlgeschlagen: ' + err.message, 'error');
-        }
-    }
-
-    function formatDate(d) {
-        const pad = n => String(n).padStart(2, '0');
-        return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear() +
-               ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    }
-
-    function esc(s) {
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
-
-    // ── Helpers ──
-    function retryExtraction() {
-        const text = textArea.value.trim();
-        if (text) analyzeWithOpenAI(text);
-    }
-
-    function clearFields() {
-        fieldIds.forEach(id => document.getElementById(id).value = '');
-        updateSaveButton();
-    }
-
-    function clearAll() {
-        clearFields();
-        textArea.value = '';
-        finalTranscript = '';
-        btnRetry.disabled = true;
-        btnSave.textContent = 'Bericht speichern';
-        btnSave.classList.remove('saved');
-        showStatus('');
-    }
-
-    function setFieldsLoading(on) {
-        fieldIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (on) { el.value = '…'; el.classList.add('loading'); }
-            else { el.classList.remove('loading'); }
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 30000);
+    try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: text }],
+                temperature: 0.1,
+                response_format: { type: 'json_schema', json_schema: { name: 'sis_bericht', strict: true, schema: {
+                    type: 'object',
+                    properties: { leitfrage:{type:'string'}, kognition:{type:'string'}, mobilitaet:{type:'string'}, krankheit:{type:'string'}, selbstversorgung:{type:'string'}, soziales:{type:'string'}, haushalt:{type:'string'}, risiken:{type:'string'}, massnahmen:{type:'string'} },
+                    required: sisKeys, additionalProperties: false
+                }}}
+            }),
+            signal: ctrl.signal
         });
+        clearTimeout(to);
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error({ 401:'Ungültiger API-Key.', 429:'Zu viele Anfragen.', 500:'OpenAI nicht erreichbar.' }[res.status] || e.error?.message || 'Fehler ' + res.status); }
+        const data = await res.json();
+        const parsed = JSON.parse(data.choices[0].message.content.trim());
+        sisKeys.forEach((k, i) => {
+            const el = document.getElementById(sisFieldIds[i]);
+            el.value = parsed[k] || ''; el.classList.remove('loading');
+        });
+        document.getElementById('btnSaveReport').disabled = false;
+        showMsg('akteStatus', 'Analyse abgeschlossen', 'success');
+        setTimeout(() => showMsg('akteStatus', ''), 3000);
+    } catch (e) {
+        clearTimeout(to);
+        sisFieldIds.forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('loading'); });
+        showMsg('akteStatus', e.name === 'AbortError' ? 'Zeitüberschreitung.' : e.message === 'Failed to fetch' ? 'Keine Verbindung.' : e.message, 'error');
     }
+}
 
-    function showStatus(msg, type = '') {
-        statusEl.textContent = msg;
-        statusEl.className = 'status' + (type ? ' ' + type : '');
+function retryExtraction() { const t = document.getElementById('fieldText').value.trim(); if (t) analyzeWithOpenAI(t); }
+
+function clearSisFields() {
+    sisFieldIds.forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('loading'); });
+    document.getElementById('btnSaveReport').disabled = true;
+}
+
+/* ═══════════════════════════════════════════════
+   SAVE & LOAD REPORTS
+   ═══════════════════════════════════════════════ */
+async function saveReport() {
+    if (!db || !currentPatientId) return;
+    const data = { volltext: document.getElementById('fieldText').value.trim(), timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+    sisKeys.forEach((k, i) => data[k] = document.getElementById(sisFieldIds[i]).value.trim());
+
+    const btn = document.getElementById('btnSaveReport');
+    btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+    try {
+        await db.collection('patients').doc(currentPatientId).collection('reports').add(data);
+        await db.collection('patients').doc(currentPatientId).update({ aktualisiert_am: firebase.firestore.FieldValue.serverTimestamp() });
+        btn.textContent = 'Gespeichert ✓'; btn.classList.add('saved');
+        showMsg('akteStatus', 'Bericht gespeichert', 'success');
+        loadReports(currentPatientId);
+        setTimeout(() => { btn.textContent = 'Bericht speichern'; btn.classList.remove('saved'); btn.disabled = false; showMsg('akteStatus', ''); }, 3000);
+    } catch (e) {
+        btn.disabled = false; btn.textContent = 'Bericht speichern';
+        showMsg('akteStatus', 'Fehler: ' + e.message, 'error');
     }
-    </script>
+}
+
+async function loadReports(patientId) {
+    if (!db) return;
+    const list = document.getElementById('reportList');
+    try {
+        const snap = await db.collection('patients').doc(patientId).collection('reports').orderBy('timestamp', 'desc').limit(30).get();
+        if (snap.empty) { list.innerHTML = '<div class="empty-hist">Noch keine Berichte.</div>'; return; }
+        list.innerHTML = '';
+        snap.forEach(doc => {
+            const d = doc.data();
+            const date = d.timestamp ? d.timestamp.toDate() : new Date();
+            const risiken = d.risiken ? d.risiken.split(',').map(r => '<span class="h-tag risk">' + esc(r.trim()) + '</span>').join('') : '';
+            const mass = d.massnahmen ? d.massnahmen.split(',').slice(0, 3).map(m => '<span class="h-tag act">' + esc(m.trim()) + '</span>').join('') : '';
+            const summary = d.kognition || d.selbstversorgung || d.leitfrage || '';
+            const el = document.createElement('div');
+            el.className = 'h-card';
+            el.innerHTML = '<div class="h-header"><span class="h-date">' + formatDate(date) + '</span>' +
+                '<button class="h-del" onclick="deleteReport(\'' + doc.id + '\')">✕</button></div>' +
+                (risiken || mass ? '<div class="h-tags">' + risiken + mass + '</div>' : '') +
+                (summary ? '<div class="h-summary">' + esc(summary) + '</div>' : '');
+            list.appendChild(el);
+        });
+    } catch (e) {
+        list.innerHTML = '<div class="empty-hist">Fehler: ' + esc(e.message) + '</div>';
+    }
+}
+
+async function deleteReport(reportId) {
+    if (!db || !currentPatientId) return;
+    try {
+        await db.collection('patients').doc(currentPatientId).collection('reports').doc(reportId).delete();
+        loadReports(currentPatientId);
+    } catch (e) { showMsg('akteStatus', 'Löschen fehlgeschlagen.', 'error'); }
+}
+
+/* ═══════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════ */
+function showMsg(elId, msg, type = '') {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.className = 'status' + (type ? ' ' + type : '');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function formatDate(d) {
+    const p = n => String(n).padStart(2, '0');
+    return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function formatDateShort(s) {
+    const [y, m, d] = s.split('-');
+    return d + '.' + m + '.' + y;
+}
+
+// Auto-resize textareas
+document.querySelectorAll('textarea').forEach(ta => {
+    ta.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'; });
+});
+
+// Enable save when SIS fields change
+sisFieldIds.forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+        document.getElementById('btnSaveReport').disabled = !sisFieldIds.some(id => document.getElementById(id).value.trim());
+    });
+});
+
+// Init
+if (firebaseReady) loadPatients();
+</script>
 </body>
 </html>
