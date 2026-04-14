@@ -6,12 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>Patientendaten — Spracheingabe</title>
+    <title>Pflegebericht — Spracheingabe</title>
 
-    <!-- ═══════════════════════════════════════════════════════════
-         FIREBASE SDK (kostenloser Tier)
-         Diese 3 Scripts laden Firebase aus dem CDN.
-         ═══════════════════════════════════════════════════════════ -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
@@ -44,423 +40,252 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Animated background ── */
         .bg-gradient {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            overflow: hidden;
-            transition: opacity 0.6s;
+            position: fixed; inset: 0; z-index: 0; overflow: hidden;
         }
-
-        .bg-gradient::before,
-        .bg-gradient::after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.25;
+        .bg-gradient::before, .bg-gradient::after {
+            content: ''; position: absolute; border-radius: 50%;
+            filter: blur(100px); opacity: 0.25;
             animation: bgFloat 12s ease-in-out infinite alternate;
             will-change: transform;
         }
-
         .bg-gradient::before {
             width: 420px; height: 420px;
             background: radial-gradient(circle, var(--siri-purple), var(--siri-blue));
             top: -120px; left: -80px;
         }
-
         .bg-gradient::after {
             width: 360px; height: 360px;
             background: radial-gradient(circle, var(--siri-pink), var(--siri-orange));
-            bottom: -80px; right: -60px;
-            animation-delay: -6s;
+            bottom: -80px; right: -60px; animation-delay: -6s;
         }
-
         body.recording .bg-gradient::before,
-        body.recording .bg-gradient::after {
-            opacity: 0.55;
-            filter: blur(80px);
-        }
+        body.recording .bg-gradient::after { opacity: 0.55; filter: blur(80px); }
 
         @keyframes bgFloat {
             0%   { transform: translate(0, 0) scale(1); }
             100% { transform: translate(30px, 20px) scale(1.12); }
         }
 
-        /* ── Container ── */
         .container {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: 480px;
+            position: relative; z-index: 1; width: 100%; max-width: 480px;
             padding: 20px 20px env(safe-area-inset-bottom, 32px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
+            display: flex; flex-direction: column; align-items: center; gap: 18px;
         }
 
         /* ── API Key ── */
-        .api-key-wrap {
-            width: 100%;
-            position: relative;
-        }
-
+        .api-key-wrap { width: 100%; position: relative; }
         .api-key-wrap input {
-            width: 100%;
-            padding: 12px 16px 12px 38px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            color: var(--text-primary);
-            font-size: 16px;
-            font-family: inherit;
-            outline: none;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            width: 100%; padding: 12px 16px 12px 38px;
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: 14px; color: var(--text-primary);
+            font-size: 16px; font-family: inherit; outline: none;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             transition: border-color 0.3s, background 0.3s;
         }
-
-        .api-key-wrap input:focus {
-            border-color: rgba(95, 195, 245, 0.4);
-            background: rgba(255, 255, 255, 0.1);
-        }
-
+        .api-key-wrap input:focus { border-color: rgba(95,195,245,0.4); background: rgba(255,255,255,0.1); }
         .api-key-wrap input::placeholder { color: var(--text-tertiary); }
-
         .api-key-wrap .key-icon {
-            position: absolute;
-            left: 13px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 15px;
-            opacity: 0.35;
-            pointer-events: none;
+            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+            font-size: 15px; opacity: 0.35; pointer-events: none;
         }
 
-        /* ── Orb Button ── */
-        .orb-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 14px;
-            padding: 8px 0;
-        }
-
+        /* ── Orb ── */
+        .orb-section { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 6px 0; }
         .orb-wrap {
-            position: relative;
-            width: 110px;
-            height: 110px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
+            position: relative; width: 110px; height: 110px;
+            cursor: pointer; -webkit-tap-highlight-color: transparent;
         }
-
         .orb-glow {
-            position: absolute;
-            inset: -24px;
-            border-radius: 50%;
+            position: absolute; inset: -24px; border-radius: 50%;
             background: conic-gradient(from 0deg, var(--siri-blue), var(--siri-purple), var(--siri-pink), var(--siri-orange), var(--siri-blue));
-            filter: blur(32px);
-            opacity: 0;
-            transition: opacity 0.6s;
-            animation: orbSpin 4s linear infinite;
-            will-change: transform;
+            filter: blur(32px); opacity: 0; transition: opacity 0.6s;
+            animation: orbSpin 4s linear infinite; will-change: transform;
         }
-
         body.recording .orb-glow { opacity: 0.7; }
-
         @keyframes orbSpin { to { transform: rotate(360deg); } }
-
         .orb {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
+            position: absolute; inset: 0; border-radius: 50%;
             background: conic-gradient(from 0deg, var(--siri-blue), var(--siri-purple), var(--siri-pink), var(--siri-orange), var(--siri-blue));
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             transition: transform 0.3s, box-shadow 0.4s;
             animation: orbSpin 6s linear infinite;
             box-shadow: 0 4px 30px rgba(0,0,0,0.4);
         }
-
         .orb:active { transform: scale(0.93); }
-
-        body.recording .orb {
-            animation: orbSpin 3s linear infinite;
-            box-shadow: 0 0 40px rgba(167, 139, 250, 0.3);
-        }
-
+        body.recording .orb { animation: orbSpin 3s linear infinite; box-shadow: 0 0 40px rgba(167,139,250,0.3); }
         .orb-inner {
-            width: 90px; height: 90px;
-            border-radius: 50%;
+            width: 90px; height: 90px; border-radius: 50%;
             background: radial-gradient(circle at 35% 35%, #1a1a2e, #0a0a14);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
         }
-
-        .mic-icon {
-            font-size: 34px;
-            filter: drop-shadow(0 0 8px rgba(95, 195, 245, 0.3));
-        }
-
+        .mic-icon { font-size: 34px; filter: drop-shadow(0 0 8px rgba(95,195,245,0.3)); }
         body.recording .mic-icon { animation: micPulse 1.2s ease-in-out infinite; }
-
-        @keyframes micPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.12); opacity: 0.8; }
-        }
-
-        .orb-label {
-            font-size: 15px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            transition: color 0.3s;
-        }
-
+        @keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12);opacity:0.8} }
+        .orb-label { font-size: 15px; font-weight: 500; color: var(--text-secondary); transition: color 0.3s; }
         body.recording .orb-label { color: var(--siri-blue); }
 
         /* ── Waveform ── */
-        .waveform {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            height: 24px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
+        .waveform { display: flex; align-items: center; gap: 3px; height: 24px; opacity: 0; transition: opacity 0.3s; }
         body.recording .waveform { opacity: 1; }
-
-        .waveform .bar {
-            width: 3px; height: 8px;
-            border-radius: 2px;
-            animation: wave 0.8s ease-in-out infinite;
-        }
-
-        .waveform .bar:nth-child(1) { animation-delay: 0s;    background: var(--siri-blue); }
-        .waveform .bar:nth-child(2) { animation-delay: 0.1s;  background: var(--siri-purple); }
-        .waveform .bar:nth-child(3) { animation-delay: 0.2s;  background: var(--siri-pink); }
-        .waveform .bar:nth-child(4) { animation-delay: 0.3s;  background: var(--siri-orange); }
-        .waveform .bar:nth-child(5) { animation-delay: 0.15s; background: var(--siri-purple); }
-        .waveform .bar:nth-child(6) { animation-delay: 0.25s; background: var(--siri-blue); }
-        .waveform .bar:nth-child(7) { animation-delay: 0.05s; background: var(--siri-pink); }
-
-        @keyframes wave {
-            0%, 100% { height: 6px; opacity: 0.5; }
-            50% { height: 22px; opacity: 1; }
-        }
+        .waveform .bar { width: 3px; height: 8px; border-radius: 2px; animation: wave 0.8s ease-in-out infinite; }
+        .waveform .bar:nth-child(1) { animation-delay:0s;    background:var(--siri-blue); }
+        .waveform .bar:nth-child(2) { animation-delay:0.1s;  background:var(--siri-purple); }
+        .waveform .bar:nth-child(3) { animation-delay:0.2s;  background:var(--siri-pink); }
+        .waveform .bar:nth-child(4) { animation-delay:0.3s;  background:var(--siri-orange); }
+        .waveform .bar:nth-child(5) { animation-delay:0.15s; background:var(--siri-purple); }
+        .waveform .bar:nth-child(6) { animation-delay:0.25s; background:var(--siri-blue); }
+        .waveform .bar:nth-child(7) { animation-delay:0.05s; background:var(--siri-pink); }
+        @keyframes wave { 0%,100%{height:6px;opacity:0.5} 50%{height:22px;opacity:1} }
 
         /* ── Glass Cards ── */
         .card {
-            width: 100%;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 20px;
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 20px;
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
         }
-
         .card-title {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-tertiary);
-            margin-bottom: 14px;
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-tertiary); margin-bottom: 14px;
         }
 
-        .fields-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .field {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .field label {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            padding-left: 2px;
-        }
-
-        .field input {
-            width: 100%;
-            padding: 12px 14px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            color: var(--text-primary);
-            font-size: 16px;
-            font-family: inherit;
-            outline: none;
+        /* ── Fields ── */
+        .fields-stack { display: flex; flex-direction: column; gap: 12px; }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label { font-size: 12px; font-weight: 500; color: var(--text-secondary); padding-left: 2px; }
+        .field input, .field textarea {
+            width: 100%; padding: 12px 14px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; color: var(--text-primary);
+            font-size: 16px; font-family: inherit; outline: none;
             transition: border-color 0.3s, background 0.3s;
         }
-
-        .field input:focus {
-            border-color: rgba(95, 195, 245, 0.3);
-            background: rgba(255,255,255,0.08);
+        .field input:focus, .field textarea:focus {
+            border-color: rgba(95,195,245,0.3); background: rgba(255,255,255,0.08);
         }
-
-        .field input::placeholder { color: var(--text-tertiary); font-size: 14px; }
-
-        .field input.loading {
-            color: var(--text-tertiary);
-            animation: shimmer 1.5s ease-in-out infinite;
+        .field input::placeholder, .field textarea::placeholder { color: var(--text-tertiary); font-size: 14px; }
+        .field textarea { resize: none; min-height: 64px; line-height: 1.5; }
+        .field input.loading, .field textarea.loading {
+            color: var(--text-tertiary); animation: shimmer 1.5s ease-in-out infinite;
         }
+        @keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
-        @keyframes shimmer {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
-        }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-        /* ── Textarea ── */
+        /* ── Textarea full text ── */
         .textarea-wrap textarea {
-            width: 100%;
-            padding: 14px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            color: var(--text-primary);
-            font-size: 16px;
-            font-family: inherit;
-            line-height: 1.6;
-            outline: none;
-            resize: none;
-            min-height: 120px;
+            width: 100%; padding: 14px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; color: var(--text-primary);
+            font-size: 16px; font-family: inherit; line-height: 1.6;
+            outline: none; resize: none; min-height: 100px;
             transition: border-color 0.3s;
         }
-
-        .textarea-wrap textarea:focus { border-color: rgba(95, 195, 245, 0.3); }
+        .textarea-wrap textarea:focus { border-color: rgba(95,195,245,0.3); }
         .textarea-wrap textarea::placeholder { color: var(--text-tertiary); font-size: 14px; }
-        body.recording .textarea-wrap textarea { border-color: rgba(95, 195, 245, 0.2); }
+        body.recording .textarea-wrap textarea { border-color: rgba(95,195,245,0.2); }
 
         /* ── Status ── */
-        .status {
-            text-align: center;
-            font-size: 13px;
-            color: var(--text-tertiary);
-            min-height: 20px;
-            transition: color 0.3s;
-        }
-
+        .status { text-align: center; font-size: 13px; color: var(--text-tertiary); min-height: 20px; }
         .status.analyzing { color: var(--siri-blue); font-weight: 500; }
-        .status.error     { color: var(--siri-pink); }
-        .status.success   { color: var(--siri-green); }
+        .status.error { color: var(--siri-pink); }
+        .status.success { color: var(--siri-green); }
 
         /* ── Buttons ── */
-        .actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            width: 100%;
-        }
-
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
         .actions button {
-            padding: 14px 16px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            color: var(--text-secondary);
-            font-size: 14px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            min-height: 48px;
+            padding: 14px 16px; background: var(--glass-bg);
+            border: 1px solid var(--glass-border); border-radius: 14px;
+            color: var(--text-secondary); font-size: 14px; font-weight: 500;
+            font-family: inherit; cursor: pointer; min-height: 48px;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            transition: all 0.2s; -webkit-tap-highlight-color: transparent;
         }
-
-        .actions button:hover {
-            background: var(--glass-bg-hover);
-            color: var(--text-primary);
-        }
-
+        .actions button:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
         .actions button:active { transform: scale(0.97); }
-
-        .actions button:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            transform: none;
-        }
-
+        .actions button:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
         .btn-save {
             grid-column: 1 / -1;
             background: linear-gradient(135deg, rgba(95,195,245,0.2), rgba(167,139,250,0.2)) !important;
             border-color: rgba(95,195,245,0.25) !important;
-            color: var(--siri-blue) !important;
-            font-size: 16px !important;
+            color: var(--siri-blue) !important; font-size: 16px !important;
             font-weight: 600 !important;
-            letter-spacing: -0.2px;
         }
-
         .btn-save:hover:not(:disabled) {
             background: linear-gradient(135deg, rgba(95,195,245,0.3), rgba(167,139,250,0.3)) !important;
             color: #fff !important;
         }
-
         .btn-save.saved {
             background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(52,211,153,0.15)) !important;
-            border-color: rgba(52,211,153,0.3) !important;
-            color: var(--siri-green) !important;
+            border-color: rgba(52,211,153,0.3) !important; color: var(--siri-green) !important;
         }
 
-        /* ── Firebase status banner ── */
-        .fb-status {
-            width: 100%;
-            text-align: center;
-            font-size: 12px;
-            padding: 8px 14px;
-            border-radius: 10px;
-            display: none;
-        }
+        /* ── Firebase status ── */
+        .fb-status { width:100%; text-align:center; font-size:12px; padding:8px 14px; border-radius:10px; display:none; }
+        .fb-status.connected { display:block; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); color:var(--siri-green); }
+        .fb-status.disconnected { display:block; background:rgba(244,114,182,0.1); border:1px solid rgba(244,114,182,0.2); color:var(--siri-pink); }
 
-        .fb-status.connected {
-            display: block;
-            background: rgba(52,211,153,0.1);
-            border: 1px solid rgba(52,211,153,0.2);
-            color: var(--siri-green);
+        /* ── Historie ── */
+        .historie-section { width: 100%; }
+        .historie-section .card-title { margin-bottom: 12px; }
+        .historie-list { display: flex; flex-direction: column; gap: 12px; }
+        .historie-empty {
+            text-align: center; padding: 24px 16px;
+            color: var(--text-tertiary); font-size: 14px;
         }
-
-        .fb-status.disconnected {
-            display: block;
-            background: rgba(244,114,182,0.1);
-            border: 1px solid rgba(244,114,182,0.2);
-            color: var(--siri-pink);
+        .historie-card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 16px; transition: background 0.2s;
         }
+        .historie-card:hover { background: rgba(255,255,255,0.07); }
+        .historie-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+        .historie-name { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+        .historie-date { font-size: 11px; color: var(--text-tertiary); }
+        .historie-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .historie-tag {
+            font-size: 11px; padding: 4px 10px; border-radius: 8px;
+            font-weight: 500; white-space: nowrap;
+        }
+        .tag-risiko { background: rgba(244,114,182,0.15); color: var(--siri-pink); }
+        .tag-massnahme { background: rgba(95,195,245,0.15); color: var(--siri-blue); }
+        .historie-situation {
+            font-size: 13px; color: var(--text-secondary); line-height: 1.5;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .historie-card.expanded .historie-situation {
+            -webkit-line-clamp: unset;
+        }
+        .historie-toggle {
+            display: inline-block; margin-top: 6px; font-size: 12px;
+            color: var(--siri-blue); cursor: pointer; border: none;
+            background: none; font-family: inherit; padding: 0;
+        }
+        .historie-delete {
+            font-size: 11px; color: var(--text-tertiary); cursor: pointer;
+            background: none; border: none; padding: 4px 8px; border-radius: 6px;
+            font-family: inherit; transition: all 0.2s;
+        }
+        .historie-delete:hover { background: rgba(244,114,182,0.15); color: var(--siri-pink); }
 
         /* ── Privacy ── */
         .privacy {
-            font-size: 11px;
-            color: var(--text-tertiary);
-            text-align: center;
-            line-height: 1.5;
-            max-width: 320px;
+            font-size: 11px; color: var(--text-tertiary); text-align: center;
+            line-height: 1.5; max-width: 320px;
         }
 
         /* ── Responsive ── */
         @media (max-width: 480px) {
-            .container { padding: 16px 16px 24px; gap: 16px; }
+            .container { padding: 16px 16px 24px; gap: 14px; }
             .orb-wrap { width: 96px; height: 96px; }
             .orb-inner { width: 78px; height: 78px; }
             .mic-icon { font-size: 28px; }
             .card { padding: 16px; border-radius: 16px; }
-            .fields-grid { gap: 10px; }
+            .field-row { grid-template-columns: 1fr; }
         }
-
-        @media (min-width: 481px) {
-            .container { padding-top: 32px; }
-        }
+        @media (min-width: 481px) { .container { padding-top: 32px; } }
     </style>
 </head>
 <body>
@@ -468,24 +293,18 @@
 
     <div class="container">
 
-        <!-- API Key -->
         <div class="api-key-wrap">
             <span class="key-icon">🔑</span>
             <input type="password" id="apiKey" placeholder="OpenAI API-Key eingeben" autocomplete="off">
         </div>
 
-        <!-- Firebase Status -->
         <div class="fb-status" id="fbStatus"></div>
 
         <!-- Orb -->
         <div class="orb-section">
             <div class="orb-wrap" id="orbBtn" role="button" tabindex="0" aria-label="Aufnahme starten" aria-pressed="false">
                 <div class="orb-glow"></div>
-                <div class="orb">
-                    <div class="orb-inner">
-                        <span class="mic-icon">🎙️</span>
-                    </div>
-                </div>
+                <div class="orb"><div class="orb-inner"><span class="mic-icon">🎙️</span></div></div>
             </div>
             <div class="waveform">
                 <div class="bar"></div><div class="bar"></div><div class="bar"></div>
@@ -494,38 +313,37 @@
             <span class="orb-label" id="orbLabel">Antippen zum Sprechen</span>
         </div>
 
-        <!-- Extracted Fields -->
+        <!-- Pflegebericht-Felder -->
         <div class="card">
-            <div class="card-title">Patientendaten</div>
-            <div class="fields-grid">
+            <div class="card-title">Pflegebericht</div>
+            <div class="fields-stack">
                 <div class="field">
-                    <label for="fieldName">Name</label>
-                    <input type="text" id="fieldName" placeholder="—">
+                    <label for="fieldBewohner">Bewohner / Kürzel</label>
+                    <input type="text" id="fieldBewohner" placeholder="z.B. Müller, H.">
                 </div>
                 <div class="field">
-                    <label for="fieldAlter">Alter</label>
-                    <input type="text" id="fieldAlter" placeholder="—">
+                    <label for="fieldSituation">Aktuelle Situation / Befinden</label>
+                    <textarea id="fieldSituation" rows="2" placeholder="Was ist passiert? Aktueller Zustand …"></textarea>
                 </div>
                 <div class="field">
-                    <label for="fieldBlutdruck">Blutdruck</label>
-                    <input type="text" id="fieldBlutdruck" placeholder="—">
+                    <label for="fieldRisiken">Beobachtete Risiken</label>
+                    <textarea id="fieldRisiken" rows="2" placeholder="z.B. Dekubitusrisiko, Sturzgefahr …"></textarea>
                 </div>
                 <div class="field">
-                    <label for="fieldZustand">Zustand</label>
-                    <input type="text" id="fieldZustand" placeholder="—">
+                    <label for="fieldMassnahmen">Durchgeführte Maßnahmen</label>
+                    <textarea id="fieldMassnahmen" rows="2" placeholder="z.B. Lagerung, Vitalzeichenkontrolle …"></textarea>
                 </div>
             </div>
         </div>
 
-        <!-- Full Text -->
+        <!-- Gesamter Text -->
         <div class="card">
-            <div class="card-title">Gesamter Text</div>
+            <div class="card-title">Gesamter erkannter Text</div>
             <div class="textarea-wrap">
                 <textarea id="fieldText" placeholder="Hier erscheint der gesprochene Text …" rows="4"></textarea>
             </div>
         </div>
 
-        <!-- Status -->
         <div class="status" id="status" aria-live="polite"></div>
 
         <!-- Actions -->
@@ -533,30 +351,28 @@
             <button id="btnRetry" onclick="retryExtraction()" disabled>Erneut extrahieren</button>
             <button onclick="clearAll()">Felder leeren</button>
             <button class="btn-save" id="btnSave" onclick="saveToFirebase()" disabled>
-                In Datenbank speichern
+                Bericht speichern
             </button>
+        </div>
+
+        <!-- Historie -->
+        <div class="card historie-section" id="historieSection">
+            <div class="card-title">Historie / Gespeicherte Berichte</div>
+            <div class="historie-list" id="historieList">
+                <div class="historie-empty">Noch keine Berichte gespeichert.</div>
+            </div>
         </div>
 
         <div class="privacy">
             Audio wird extern verarbeitet (Web Speech API).
             Text wird zur Analyse an OpenAI gesendet.
-            Daten werden in Firebase gespeichert.
+            Berichte werden in Firebase gespeichert.
         </div>
     </div>
 
     <script>
     /* ═══════════════════════════════════════════════════════════════
        🔥 FIREBASE KONFIGURATION
-       ──────────────────────────────────────────────────────────────
-       Trage hier deine eigenen Firebase-Zugangsdaten ein!
-
-       So findest du sie:
-       1. Gehe zu https://console.firebase.google.com
-       2. Erstelle ein neues Projekt (oder wähle ein bestehendes)
-       3. Klicke auf "Web-App hinzufügen" (</>-Symbol)
-       4. Kopiere die Werte aus dem firebaseConfig-Objekt hierher
-       5. Aktiviere "Firestore Database" im Firebase-Dashboard
-          (Build → Firestore Database → Datenbank erstellen → Testmodus)
        ═══════════════════════════════════════════════════════════════ */
     const firebaseConfig = {
         apiKey:            "AIzaSyCYOzDXQc1fAhamPDlrg_0zoClG25TV88k",
@@ -566,9 +382,7 @@
         messagingSenderId: "66935850901",
         appId:             "1:66935850901:web:4c2a582a15b00d9f32589c"
     };
-    /* ═══════════════════════════════════════════════════════════════ */
 
-    // ── Firebase Init ──
     let db = null;
     let firebaseReady = false;
 
@@ -578,8 +392,9 @@
             db = firebase.firestore();
             firebaseReady = true;
             showFbStatus('Firebase verbunden', 'connected');
+            loadHistorie();
         } else {
-            showFbStatus('Firebase nicht konfiguriert — Speichern deaktiviert', 'disconnected');
+            showFbStatus('Firebase nicht konfiguriert', 'disconnected');
         }
     } catch (e) {
         showFbStatus('Firebase-Fehler: ' + e.message, 'disconnected');
@@ -605,21 +420,17 @@
     const textArea = document.getElementById('fieldText');
     const btnRetry = document.getElementById('btnRetry');
     const btnSave  = document.getElementById('btnSave');
-    const fieldIds = ['fieldName', 'fieldAlter', 'fieldBlutdruck', 'fieldZustand'];
+    const fieldIds = ['fieldBewohner', 'fieldSituation', 'fieldRisiken', 'fieldMassnahmen'];
 
     // ── Events ──
     orbBtn.addEventListener('click', toggleRecording);
-    orbBtn.addEventListener('keydown', (e) => {
+    orbBtn.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRecording(); }
     });
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && isRecordingIntended) stopRecording();
     });
-
-    // Enable save button when any field changes
-    fieldIds.forEach(id => {
-        document.getElementById(id).addEventListener('input', updateSaveButton);
-    });
+    fieldIds.forEach(id => document.getElementById(id).addEventListener('input', updateSaveButton));
 
     function updateSaveButton() {
         const hasData = fieldIds.some(id => document.getElementById(id).value.trim());
@@ -633,10 +444,7 @@
 
     function startRecording() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) {
-            showStatus('Browser nicht unterstützt. Bitte Chrome oder Edge verwenden.', 'error');
-            return;
-        }
+        if (!SR) { showStatus('Bitte Chrome oder Edge verwenden.', 'error'); return; }
 
         finalTranscript = '';
         textArea.value = '';
@@ -648,120 +456,106 @@
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
-
         recognition.onresult = handleResult;
         recognition.onerror = handleError;
         recognition.onend = handleEnd;
-
         recognition.start();
         isRecordingIntended = true;
 
         document.body.classList.add('recording');
         orbBtn.setAttribute('aria-pressed', 'true');
-        orbBtn.setAttribute('aria-label', 'Aufnahme stoppen');
         orbLabel.textContent = 'Zuhören …';
         showStatus('');
     }
 
     function stopRecording() {
         isRecordingIntended = false;
-
-        if (recognition) {
-            recognition.onend = null;
-            recognition.onerror = null;
-            recognition.stop();
-            recognition = null;
-        }
-
+        if (recognition) { recognition.onend = null; recognition.onerror = null; recognition.stop(); recognition = null; }
         document.body.classList.remove('recording');
         orbBtn.setAttribute('aria-pressed', 'false');
-        orbBtn.setAttribute('aria-label', 'Aufnahme starten');
         orbLabel.textContent = 'Antippen zum Sprechen';
 
         const text = textArea.value.trim();
-        if (text) {
-            finalTranscript = text;
-            btnRetry.disabled = false;
-            analyzeWithOpenAI(text);
-        } else {
-            showStatus('Kein Text erkannt.', 'error');
-        }
+        if (text) { finalTranscript = text; btnRetry.disabled = false; analyzeWithOpenAI(text); }
+        else { showStatus('Kein Text erkannt.', 'error'); }
     }
 
     function handleResult(event) {
-        let interim = '';
-        let accumulated = '';
-
+        let interim = '', accumulated = '';
         for (let i = 0; i < event.results.length; i++) {
             const t = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-                accumulated += t + ' ';
-            } else {
-                interim += t;
-            }
+            if (event.results[i].isFinal) accumulated += t + ' ';
+            else interim += t;
         }
-
         if (accumulated) finalTranscript = accumulated;
-
         textArea.value = (finalTranscript + interim).trim();
         textArea.scrollTop = textArea.scrollHeight;
     }
 
     function handleError(event) {
         if (['no-speech', 'aborted'].includes(event.error)) return;
-
-        const msgs = {
-            'not-allowed':        'Mikrofonzugriff verweigert. Bitte Berechtigung erteilen.',
-            'audio-capture':      'Kein Mikrofon gefunden.',
-            'network':            'Netzwerkfehler bei der Spracherkennung.',
-            'service-not-allowed': 'Spracherkennungsdienst nicht verfügbar.',
-        };
-        showStatus(msgs[event.error] || 'Fehler: ' + event.error, 'error');
+        const m = { 'not-allowed':'Mikrofonzugriff verweigert.', 'audio-capture':'Kein Mikrofon gefunden.', 'network':'Netzwerkfehler.', 'service-not-allowed':'Dienst nicht verfügbar.' };
+        showStatus(m[event.error] || 'Fehler: ' + event.error, 'error');
     }
 
     function handleEnd() {
         if (!isRecordingIntended) return;
-
         const now = Date.now();
         restartCount = (now - lastRestartTime < 10000) ? restartCount + 1 : 1;
         lastRestartTime = now;
-
-        if (restartCount > 5) {
-            showStatus('Spracherkennung abgebrochen. Bitte erneut starten.', 'error');
-            stopRecording();
-            return;
-        }
-
+        if (restartCount > 5) { showStatus('Spracherkennung abgebrochen.', 'error'); stopRecording(); return; }
         setTimeout(() => {
-            if (isRecordingIntended && recognition) {
-                try { recognition.start(); } catch (_) {}
-            }
+            if (isRecordingIntended && recognition) { try { recognition.start(); } catch (_) {} }
         }, 300);
     }
 
     // ── OpenAI Extraction ──
     async function analyzeWithOpenAI(text) {
         const apiKey = document.getElementById('apiKey').value.trim();
-        if (!apiKey) {
-            showStatus('Bitte OpenAI API-Key eingeben.', 'error');
-            return;
-        }
+        if (!apiKey) { showStatus('Bitte OpenAI API-Key eingeben.', 'error'); return; }
 
-        showStatus('Daten werden extrahiert …', 'analyzing');
+        showStatus('Pflegebericht wird analysiert …', 'analyzing');
         setFieldsLoading(true);
 
-        const systemPrompt = `Du bist ein medizinischer Datenextraktions-Assistent. Extrahiere aus dem transkribierten Sprachtext strukturierte Patientendaten.
+        const systemPrompt = `Du bist ein erfahrener Pflegeexperte und Datenextraktions-Assistent für die ambulante und stationäre Pflege. Du kennst die Strukturierte Informationssammlung (SIS) und die Pflegedokumentation nach den 6 Themenbereichen.
 
-Extrahiere:
-1. name – Vollständiger Name. Korrigiere offensichtliche Transkriptionsfehler.
-2. alter – Alter als Zahl. "zweiundfünfzig" → "52". "Mitte 50" → "ca. 55".
-3. blutdruck – Format "systolisch/diastolisch". "120 zu 80" → "120/80".
-4. zustand – 1-3 Worte: "stabil", "kritisch", "leichte Beschwerden" etc.
+Analysiere den folgenden transkribierten Sprachtext einer Pflegekraft und extrahiere strukturierte Daten für einen Pflegebericht.
 
-REGELN:
-- NIEMALS erfundene Daten. Fehlende Info → leerer String "".
-- Text stammt aus Spracherkennung, kann Fehler enthalten.
-- Antworte NUR mit dem JSON-Objekt.`;
+Extrahiere diese Felder:
+
+1. bewohner – Name oder Kürzel des Bewohners/Patienten. Korrigiere offensichtliche Transkriptionsfehler bei Namen.
+
+2. situation – Aktuelle Situation und Befinden. Fasse zusammen: Was ist passiert? Wie geht es dem Bewohner? Beziehe dich auf die SIS-Themenbereiche (Kognition, Mobilität, Körperpflege, Ernährung, Kontinenz, soziale Teilhabe). Formuliere in knappen, professionellen Sätzen.
+
+3. risiken – Beobachtete oder relevante Risiken. Erkenne aus dem Text pflegerelevante Risiken wie:
+   - Dekubitusrisiko (Druckgeschwüre, Hautrötungen, Immobilität)
+   - Sturzrisiko (Gangunsicherheit, Schwindel, Stolpern)
+   - Kontrakturrisiko (Bewegungseinschränkungen)
+   - Dehydrationsrisiko (wenig getrunken, trockene Schleimhäute)
+   - Mangelernährung (wenig gegessen, Gewichtsverlust)
+   - Pneumonierisiko (flache Atmung, Immobilität)
+   - Inkontinenz
+   - Verwirrtheit / Desorientierung
+   - Schmerzen
+   Gib nur tatsächlich im Text genannte oder klar ableitbare Risiken an. Formatiere als kommagetrennte Liste.
+
+4. massnahmen – Durchgeführte oder geplante Maßnahmen. Erkenne pflegerische Interventionen wie:
+   - Lagerung / Positionswechsel / Mobilisation
+   - Vitalzeichenkontrolle (Blutdruck, Puls, Temperatur, Blutzucker)
+   - Medikamentengabe
+   - Wundversorgung / Verbandswechsel
+   - Körperpflege / Hautpflege
+   - Ernährung / Flüssigkeitszufuhr sichergestellt
+   - Sturzprophylaxe / Hilfsmittel bereitgestellt
+   - Arzt informiert / Angehörige informiert
+   - Beobachtung / Überwachung
+   Formuliere als kommagetrennte Liste konkreter Maßnahmen.
+
+WICHTIGE REGELN:
+- NIEMALS Daten erfinden. Fehlende Information → leerer String "".
+- Der Text stammt aus automatischer Spracherkennung und enthält möglicherweise Fehler. Interpretiere wohlwollend.
+- Verwende professionelle Pflegeterminologie.
+- Antworte ausschließlich mit dem JSON-Objekt.`;
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000);
@@ -769,10 +563,7 @@ REGELN:
         try {
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + apiKey
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
                 body: JSON.stringify({
                     model: 'gpt-4o-mini',
                     messages: [
@@ -783,17 +574,17 @@ REGELN:
                     response_format: {
                         type: 'json_schema',
                         json_schema: {
-                            name: 'patient_data',
+                            name: 'pflegebericht',
                             strict: true,
                             schema: {
                                 type: 'object',
                                 properties: {
-                                    name:      { type: 'string' },
-                                    alter:     { type: 'string' },
-                                    blutdruck: { type: 'string' },
-                                    zustand:   { type: 'string' }
+                                    bewohner:   { type: 'string' },
+                                    situation:  { type: 'string' },
+                                    risiken:    { type: 'string' },
+                                    massnahmen: { type: 'string' }
                                 },
-                                required: ['name', 'alter', 'blutdruck', 'zustand'],
+                                required: ['bewohner', 'situation', 'risiken', 'massnahmen'],
                                 additionalProperties: false
                             }
                         }
@@ -801,22 +592,21 @@ REGELN:
                 }),
                 signal: controller.signal
             });
-
             clearTimeout(timeout);
 
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
-                const msg = { 401: 'Ungültiger API-Key.', 429: 'Zu viele Anfragen.', 500: 'OpenAI nicht erreichbar.', 502: 'OpenAI nicht erreichbar.', 503: 'OpenAI nicht erreichbar.' };
-                throw new Error(msg[response.status] || err.error?.message || 'API-Fehler ' + response.status);
+                const m = { 401:'Ungültiger API-Key.', 429:'Zu viele Anfragen.', 500:'OpenAI nicht erreichbar.', 502:'OpenAI nicht erreichbar.', 503:'OpenAI nicht erreichbar.' };
+                throw new Error(m[response.status] || err.error?.message || 'API-Fehler ' + response.status);
             }
 
             const data = await response.json();
             const parsed = JSON.parse(data.choices[0].message.content.trim());
 
-            document.getElementById('fieldName').value      = parsed.name || '';
-            document.getElementById('fieldAlter').value     = parsed.alter || '';
-            document.getElementById('fieldBlutdruck').value = parsed.blutdruck || '';
-            document.getElementById('fieldZustand').value   = parsed.zustand || '';
+            document.getElementById('fieldBewohner').value   = parsed.bewohner || '';
+            document.getElementById('fieldSituation').value  = parsed.situation || '';
+            document.getElementById('fieldRisiken').value    = parsed.risiken || '';
+            document.getElementById('fieldMassnahmen').value = parsed.massnahmen || '';
 
             setFieldsLoading(false);
             updateSaveButton();
@@ -826,55 +616,127 @@ REGELN:
         } catch (err) {
             clearTimeout(timeout);
             setFieldsLoading(false);
-            if (err.name === 'AbortError') {
-                showStatus('Zeitüberschreitung.', 'error');
-            } else if (err.message === 'Failed to fetch') {
-                showStatus('Keine Internetverbindung.', 'error');
-            } else {
-                showStatus(err.message, 'error');
-            }
+            if (err.name === 'AbortError') showStatus('Zeitüberschreitung.', 'error');
+            else if (err.message === 'Failed to fetch') showStatus('Keine Internetverbindung.', 'error');
+            else showStatus(err.message, 'error');
         }
     }
 
     // ── Firebase Save ──
     async function saveToFirebase() {
-        if (!db) {
-            showStatus('Firebase nicht konfiguriert.', 'error');
-            return;
-        }
+        if (!db) { showStatus('Firebase nicht konfiguriert.', 'error'); return; }
 
         const data = {
-            name:      document.getElementById('fieldName').value.trim(),
-            alter:     document.getElementById('fieldAlter').value.trim(),
-            blutdruck: document.getElementById('fieldBlutdruck').value.trim(),
-            zustand:   document.getElementById('fieldZustand').value.trim(),
-            text:      textArea.value.trim(),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            bewohner:   document.getElementById('fieldBewohner').value.trim(),
+            situation:  document.getElementById('fieldSituation').value.trim(),
+            risiken:    document.getElementById('fieldRisiken').value.trim(),
+            massnahmen: document.getElementById('fieldMassnahmen').value.trim(),
+            text:       textArea.value.trim(),
+            timestamp:  firebase.firestore.FieldValue.serverTimestamp()
         };
 
         btnSave.disabled = true;
         btnSave.textContent = 'Wird gespeichert …';
-        showStatus('Speichere in Datenbank …', 'analyzing');
 
         try {
-            await db.collection('patienten').add(data);
+            await db.collection('pflegeberichte').add(data);
 
             btnSave.textContent = 'Gespeichert ✓';
             btnSave.classList.add('saved');
-            showStatus('Erfolgreich gespeichert', 'success');
+            showStatus('Bericht gespeichert', 'success');
+            loadHistorie();
 
             setTimeout(() => {
-                btnSave.textContent = 'In Datenbank speichern';
+                btnSave.textContent = 'Bericht speichern';
                 btnSave.classList.remove('saved');
                 updateSaveButton();
                 showStatus('');
             }, 3000);
-
         } catch (err) {
             btnSave.disabled = false;
-            btnSave.textContent = 'In Datenbank speichern';
+            btnSave.textContent = 'Bericht speichern';
             showStatus('Speichern fehlgeschlagen: ' + err.message, 'error');
         }
+    }
+
+    // ── Firebase Load Historie ──
+    async function loadHistorie() {
+        if (!db) return;
+        const list = document.getElementById('historieList');
+
+        try {
+            const snap = await db.collection('pflegeberichte').orderBy('timestamp', 'desc').limit(50).get();
+
+            if (snap.empty) {
+                list.innerHTML = '<div class="historie-empty">Noch keine Berichte gespeichert.</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            snap.forEach(doc => {
+                const d = doc.data();
+                const date = d.timestamp ? d.timestamp.toDate() : new Date();
+                const card = document.createElement('div');
+                card.className = 'historie-card';
+                card.dataset.id = doc.id;
+
+                const risiken = d.risiken ? d.risiken.split(',').map(r =>
+                    '<span class="historie-tag tag-risiko">' + r.trim() + '</span>'
+                ).join('') : '';
+
+                const massnahmen = d.massnahmen ? d.massnahmen.split(',').map(m =>
+                    '<span class="historie-tag tag-massnahme">' + m.trim() + '</span>'
+                ).join('') : '';
+
+                card.innerHTML =
+                    '<div class="historie-header">' +
+                        '<span class="historie-name">' + esc(d.bewohner || 'Unbekannt') + '</span>' +
+                        '<div style="display:flex;align-items:center;gap:8px">' +
+                            '<span class="historie-date">' + formatDate(date) + '</span>' +
+                            '<button class="historie-delete" onclick="deleteEntry(\'' + doc.id + '\')" title="Löschen">✕</button>' +
+                        '</div>' +
+                    '</div>' +
+                    (risiken || massnahmen ?
+                        '<div class="historie-tags">' + risiken + massnahmen + '</div>' : '') +
+                    '<div class="historie-situation">' + esc(d.situation || '') + '</div>' +
+                    (d.situation && d.situation.length > 150 ?
+                        '<button class="historie-toggle" onclick="toggleExpand(this)">Mehr anzeigen</button>' : '');
+
+                list.appendChild(card);
+            });
+        } catch (err) {
+            list.innerHTML = '<div class="historie-empty">Fehler beim Laden: ' + esc(err.message) + '</div>';
+        }
+    }
+
+    function toggleExpand(btn) {
+        const card = btn.closest('.historie-card');
+        card.classList.toggle('expanded');
+        btn.textContent = card.classList.contains('expanded') ? 'Weniger' : 'Mehr anzeigen';
+    }
+
+    async function deleteEntry(id) {
+        if (!db) return;
+        try {
+            await db.collection('pflegeberichte').doc(id).delete();
+            loadHistorie();
+            showStatus('Eintrag gelöscht', 'success');
+            setTimeout(() => showStatus(''), 2000);
+        } catch (err) {
+            showStatus('Löschen fehlgeschlagen: ' + err.message, 'error');
+        }
+    }
+
+    function formatDate(d) {
+        const pad = n => String(n).padStart(2, '0');
+        return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear() +
+               ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
     }
 
     // ── Helpers ──
@@ -893,7 +755,7 @@ REGELN:
         textArea.value = '';
         finalTranscript = '';
         btnRetry.disabled = true;
-        btnSave.textContent = 'In Datenbank speichern';
+        btnSave.textContent = 'Bericht speichern';
         btnSave.classList.remove('saved');
         showStatus('');
     }
